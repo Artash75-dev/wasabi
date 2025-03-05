@@ -25,10 +25,27 @@ const HeaderAdmin = ({ pathname, authData }) => {
   const [products, setProducts] = useState([]);
   const router = useRouter();
 
-  const clearCache = () => {
-    router.prefetch;
-    window.location.reload();
-  };
+const clearCache = async () => {
+  try {
+    const response = await fetch('/api/revalidate', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ tag: 'products' }), // Send tag in body
+    });
+
+    if (!response.ok) {
+      throw new Error('Revalidation failed');
+    }
+
+    router.refresh();
+    toast.success("Cache cleared successfully");
+  } catch (error) {
+    console.error("Error clearing cache:", error);
+    toast.error("Failed to clear cache");
+  }
+};
 
   useEffect(() => {
     const fetchData = async () => {

@@ -30,30 +30,30 @@ app.prepare().then(() => {
           const parsedData = parse(body);
 
           // Emit the parsed data via Socket.IO, but only after a successful connection
-          if (io && parsedData.caller) {
-            const userPhone = parsedData.caller.split("+")[1];
-            const posterUser = await (
-              await fetch(
-                `https://joinposter.com/api/clients.getClients?${
-                  process.env.NEXT_PUBLIC_POSTER_TOKEN
-                }&phone=${
-                  userPhone.length == 9 ? `998${userPhone}` : `${userPhone}`
-                }`
-              )
-            ).json();
-            if (posterUser?.response?.length > 0) {
-              io.emit("phone", {
-                clientId: posterUser?.response[0]?.client_id,
-                phone: posterUser?.response[0]?.phone,
-                phoneNumber: posterUser?.response[0]?.phone_number,
-                has: true,
-              });
-            } else {
-              io.emit("phone", {
-                has: false,
-              });
-            }
-          }
+          // if (io && parsedData.caller) {
+          //   const userPhone = parsedData.caller.split("+")[1];
+          //   const posterUser = await (
+          //     await fetch(
+          //       `https://joinposter.com/api/clients.getClients?${
+          //         process.env.NEXT_PUBLIC_POSTER_TOKEN
+          //       }&phone=${
+          //         userPhone.length == 9 ? `998${userPhone}` : `${userPhone}`
+          //       }`
+          //     )
+          //   ).json();
+          //   if (posterUser?.response?.length > 0) {
+          //     io.emit("phone", {
+          //       clientId: posterUser?.response[0]?.client_id,
+          //       phone: posterUser?.response[0]?.phone,
+          //       phoneNumber: posterUser?.response[0]?.phone_number,
+          //       has: true,
+          //     });
+          //   } else {
+          //     io.emit("phone", {
+          //       has: false,
+          //     });
+          //   }
+          // }
 
           // Respond with a 200 status
           res.end(JSON.stringify({ message: "Success" }));

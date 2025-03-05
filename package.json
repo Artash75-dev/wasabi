@@ -7,7 +7,8 @@
     "dev": "node server.js",
     "build": "next build",
     "start": "NODE_ENV=production node server.js",
-    "lint": "next lint"
+    "lint": "next lint",
+    "prod": "npm run build && npm start"
   },
   "dependencies": {
     "@headlessui/react": "^2.1.8",
