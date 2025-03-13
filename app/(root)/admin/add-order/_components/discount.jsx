@@ -1,18 +1,21 @@
 import Loader from "@/components/shared/loader";
-import useProductStore from "@/store/event";
+import useProductStore, { useEvent } from "@/store/event";
 import { Minus, Plus } from "lucide-react";
 import React, { useEffect } from "react";
 
 const Discount = ({ loading }) => {
   const { discounts, discountProducts, incrementDiscount, decrementDiscount } =
     useProductStore();
+  const { setReload } = useEvent();
 
   const handleAddDiscount = (discount) => {
     incrementDiscount(discount);
+    setReload();
   };
 
   const handleRemoveDiscount = (discount) => {
     decrementDiscount(discount);
+    setReload()
   };
 
   return (
@@ -35,9 +38,9 @@ const Discount = ({ loading }) => {
                     key={i}
                     className={`relative flex justify-between flex-col gap-2 shadow-custom rounded-md p-2 min-h-24`}
                   >
-                    {!item?.active && (
+                    {/* {!item?.active && (
                       <div className="z-10 absolute top-0 left-0 w-full h-full rounded-md bg-white/50" />
-                    )}
+                    )} */}
                     <h1 className="textSmall2">{item?.name}</h1>
                     <div className="flex justify-between rounded-md px-2 py-1 items-center gap-4">
                       <button

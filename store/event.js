@@ -4,6 +4,7 @@ export const useEvent = create((set) => ({
   activeTab: 1,
   timeRange: "1d",
   reflesh: false,
+  reload:false,
   clients: [],
   searchValue: [],
   clientInfoData: null,
@@ -18,6 +19,7 @@ export const useEvent = create((set) => ({
   setTimeRange: (data) => set(() => ({ timeRange: data })),
   setClientInfoData: (data) => set(() => ({ clientInfoData: data })),
   setReflesh: () => set((state) => ({ reflesh: !state.reflesh })),
+  setReload: () => set((state) => ({ reload:!state.reload })),
 }));
 
 export const orderCreateInfo = create((set) => ({

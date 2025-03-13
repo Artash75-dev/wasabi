@@ -12,7 +12,7 @@ import { Button } from "@/components/ui/button";
 import Image from "next/image";
 import { closeIcon, sendIcon } from "@/public/images";
 import { Map, Placemark, YMaps, ZoomControl } from "@pbe/react-yandex-maps";
-import useProductStore, { orderCreateInfo } from "@/store/event";
+import useProductStore, { orderCreateInfo, useEvent } from "@/store/event";
 import axios from "axios";
 import { apiKeyYandex } from "@/lib/utils";
 import toast from "react-hot-toast";
@@ -69,6 +69,7 @@ export default function OrderDialog({
   const router = useRouter();
   const { discountsNames, orderData, setOrderData, discounts } =
     orderCreateInfo();
+  const { reload } = useEvent();
   const [branches, setBranches] = useState([]);
   const [loading, setLoading] = useState(true);
   const [isLoading, setIsLoading] = useState(false);
@@ -319,40 +320,6 @@ export default function OrderDialog({
     }
   };
 
-  const calculateProductTotal = (product, active) => {
-    let total = 0;
-
-    // Helper function to calculate the discounted price
-    const applyDiscount = (price, discount) => {
-      if (!discount) return roundToTwoDecimals(price);
-
-      if (discount?.params?.result_type == 2) {
-        // Fixed discount
-        return roundToTwoDecimals(
-          Math.max(0, price - discount.params.discount_value / 100)
-        );
-      } else if (discount?.params?.result_type == 3) {
-        // Percentage discount
-        return roundToTwoDecimals(
-          (price * (100 - discount.params.discount_value)) / 100
-        );
-      }
-
-      return roundToTwoDecimals(price);
-    };
-
-    // Calculate product price
-    let productPrice = Number(product?.price["1"]) / 100;
-    if (active) {
-      if (product?.discount?.active) {
-        productPrice = applyDiscount(productPrice, product?.discount);
-      }
-    }
-    total += productPrice * product?.count;
-
-    return roundToTwoDecimals(total);
-  };
-
   const handleResetOrder = () => {
     setOpen(false);
     setClientData();
@@ -401,7 +368,45 @@ export default function OrderDialog({
     })();
   }, []);
 
+  const calculateProductTotal = (product, active) => {
+    let total = 0;
+
+    // Helper function to calculate the discounted price
+    const applyDiscount = (price, discount) => {
+      if (!discount) return roundToTwoDecimals(price);
+
+      if (discount?.params?.result_type == 2) {
+        // Fixed discount
+        return roundToTwoDecimals(
+          Math.max(0, price - discount.params.discount_value / 100)
+        );
+      } else if (discount?.params?.result_type == 3) {
+        // Percentage discount
+        return roundToTwoDecimals(
+          (price * (100 - discount.params.discount_value)) / 100
+        );
+      }
+
+      return roundToTwoDecimals(price);
+    };
+
+    // Calculate product price
+    let productPrice = Number(product?.price["1"]) / 100;
+    if (active) {
+      if (product?.discount?.active) {
+        productPrice = applyDiscount(productPrice, product?.discount);
+      } else {
+        productPrice = applyDiscount(productPrice, null);
+      }
+    }
+    total += productPrice * product?.count;
+
+    return roundToTwoDecimals(total);
+  };
+
   useEffect(() => {
+    console.log(discountProducts);
+
     const calculateTotals = async () => {
       let noDiscountProductsTotal = 0; // Aktiv emas mahsulotlar
       let activeNoDiscountProductsTotal = 0; // Aktiv, lekin discount yo'q
@@ -423,7 +428,7 @@ export default function OrderDialog({
           return;
         }
         // 2. Aktiv, lekin discount yo'q
-        activeNoDiscountProductsTotal += calculateProductTotal(product, true);
+        activeNoDiscountProductsTotal += calculateProductTotal(product, false);
       });
       discountProducts?.forEach((product) => {
         if (product?.discount?.active) {
@@ -431,6 +436,8 @@ export default function OrderDialog({
             product,
             true
           );
+        } else {
+          activeWithDiscountProductsTotal += 0;
         }
       });
       // Client aksiyasini qo‘llash faqat "aktiv va discount yo'q" mahsulotlarga
@@ -466,6 +473,13 @@ export default function OrderDialog({
           console.error("Error fetching client data:", error);
         }
       }
+
+      console.log(
+        { noDiscountProductsTotal },
+        { activeNoDiscountProductsTotal },
+        { activeWithDiscountProductsTotal }
+      );
+
       setOrderData({
         ...orderData,
         total:
@@ -476,7 +490,13 @@ export default function OrderDialog({
       });
     };
     calculateTotals();
-  }, [products, orderData?.client, discountProducts, discounts]);
+  }, [
+    products,
+    orderData?.client,
+    discountProducts?.discount?.active,
+    reload,
+    discounts,
+  ]);
   console.log(orderData);
 
   return (
