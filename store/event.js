@@ -4,7 +4,7 @@ export const useEvent = create((set) => ({
   activeTab: 1,
   timeRange: "1d",
   reflesh: false,
-  reload:false,
+  reload: false,
   clients: [],
   searchValue: [],
   clientInfoData: null,
@@ -19,7 +19,7 @@ export const useEvent = create((set) => ({
   setTimeRange: (data) => set(() => ({ timeRange: data })),
   setClientInfoData: (data) => set(() => ({ clientInfoData: data })),
   setReflesh: () => set((state) => ({ reflesh: !state.reflesh })),
-  setReload: () => set((state) => ({ reload:!state.reload })),
+  setReload: () => set((state) => ({ reload: !state.reload })),
 }));
 
 export const orderCreateInfo = create((set) => ({
@@ -828,7 +828,7 @@ const useProductStore = create((set) => ({
           ];
         } else {
           updatedDiscountProducts = updatedDiscountProducts.map((p) =>
-            p?.product_id == product.product_id
+            +p?.product_id == +product.product_id
               ? {
                   ...product,
                   discount,
@@ -853,28 +853,36 @@ const useProductStore = create((set) => ({
       state.initializeDiscountProducts();
       let updateDiscount = state.discountProducts;
       updateDiscount = updateDiscount
-        .map((p) =>
-          p?.product_id == discount.product_id &&
-          discount?.discount?.promotion_id == p?.discount?.promotion_id
-            ? { ...p, count: p.count + 1 }
-            : p
-        )
+        .map((p) => {
+          if (
+            p?.product_id == discount.product_id &&
+            discount?.discount?.promotion_id == p?.discount?.promotion_id
+          ) {
+            return { ...p, count: p.count + 1 };
+          } else return p;
+        })
         .filter((p) => p.count > 0);
       localStorage.setItem("discountProducts", JSON.stringify(updateDiscount));
       return { discountProducts: updateDiscount ?? [] };
     });
   },
   minusDiscount: (discount) => {
+    console.log(discount, "minus discount");
+
     set((state) => {
       state.initializeDiscountProducts();
       let updateDiscount = state.discountProducts;
       updateDiscount = updateDiscount
-        .map((p) =>
-          p?.product_id == discount.product_id &&
-          discount?.discount?.promotion_id == p?.discount?.promotion_id
-            ? { ...p, count: p.count - 1 }
-            : p
-        )
+        .map((p) => {
+          if (
+            p?.product_id == discount.product_id &&
+            discount?.discount?.promotion_id == p?.discount?.promotion_id
+          ) {
+            return { ...p, count: p.count - 1 };
+          } else {
+            return p;
+          }
+        })
         .filter((p) => p.count > 0);
       localStorage.setItem("discountProducts", JSON.stringify(updateDiscount));
       return { discountProducts: updateDiscount ?? [] };
@@ -2236,6 +2244,8 @@ const useProductStore = create((set) => ({
         const findProd = updatedProducts?.find(
           (prd) => prd?.product_id == fDisc?.product_id
         );
+        console.log({firstActiveApplied});
+        
         if (
           fDisc?.discount?.promotion_id == discount?.promotion_id &&
           findProd
@@ -2249,8 +2259,8 @@ const useProductStore = create((set) => ({
           ) {
             firstActiveApplied = true; // Birinchi mahsulotni active qilishni belgilaymiz
             updatedDiscounts = updatedDiscounts.map((upd) => {
-              if (upd?.promotion_id === discount?.promotion_id) {
-                return { ...upd, end: true, prodCount: 1 };
+              if (upd?.promotion_id == discount?.promotion_id) {
+                return { ...upd, active: true, end: true, prodCount: 1 };
               } else return upd;
             });
             updatedProducts = updatedProducts?.filter((prd) => {
@@ -2271,8 +2281,8 @@ const useProductStore = create((set) => ({
             if (discount?.params?.conditions_exactly == 1) {
               firstActiveApplied = true;
               updatedDiscounts = updatedDiscounts.map((upd) => {
-                if (upd?.promotion_id === discount?.promotion_id) {
-                  return { ...upd, end: true, prodCount: 1 };
+                if (+upd?.promotion_id == +discount?.promotion_id) {
+                  return { ...upd, active: true, end: true, prodCount: 1 };
                 } else return upd;
               });
               updatedProducts = updatedProducts

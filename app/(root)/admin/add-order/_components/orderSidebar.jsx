@@ -8,6 +8,7 @@ import Check from "./check";
 import Client from "./client";
 import Discount from "./discount";
 import axios from "axios";
+import { getData } from "@/actions/get";
 
 export default function SideBarOrder({
   categoryData,
@@ -80,60 +81,68 @@ export default function SideBarOrder({
     if (activeTab == 3) {
       const fetchData = async () => {
         try {
-          const res = await axios.get("/api/discount");
+          const res = await getData("clients.getPromotions");
+          console.log(res, "discounts");
+
           const discountProducts = localStorage.getItem("discountProducts")
             ? JSON.parse(localStorage.getItem("discountProducts"))
             : [];
-          const promotions = res?.data?.data;
+          const promotions = res?.response;
           let filterPromotions = promotions?.filter((prom) => {
-            const nowDate = new Date(); // Hozirgi sana va vaqt
-            const startDate = new Date(prom.date_start); // Sana boshlanishi
-            const endDate = new Date(prom.date_end); // Sana tugashi
+            const nowTimestamp = Date.now(); // Hozirgi vaqt (millisekundlarda)
+            const startTimestamp = new Date(prom.date_start).getTime(); // Boshlanish sanasi
+            const endTimestamp = new Date(prom.date_end).getTime(); // Tugash sanasi
 
             // Haftani moslashtirish (0 = Dushanba, 6 = Yakshanba)
-            const adjustedWeekDay = (nowDate.getDay() + 6) % 7;
+            const adjustedWeekDay = (new Date().getDay() + 6) % 7;
 
             // Sana bo'yicha tekshiruv
-            const isDateValid = startDate <= nowDate && nowDate <= endDate;
+            const isDateValid =
+              startTimestamp <= nowTimestamp && nowTimestamp <= endTimestamp;
 
             // Period bo'yicha tekshiruv
             const isPeriodValid = prom?.params?.periods?.some((period) => {
               const [startHour, startMinute] = period.start
                 .split(":")
-                .map(Number); // "11:00" => [11, 00]
-              const [endHour, endMinute] = period.end.split(":").map(Number); // "23:00" => [23, 00]
+                .map(Number);
+              const [endHour, endMinute] = period.end.split(":").map(Number);
 
-              const startTime = new Date(nowDate);
+              const startTime = new Date();
               startTime.setHours(startHour, startMinute, 0, 0);
+              const startTimestampPeriod = startTime.getTime();
 
-              const endTime = new Date(nowDate);
+              const endTime = new Date();
               endTime.setHours(endHour, endMinute, 0, 0);
+              const endTimestampPeriod = endTime.getTime();
 
-              return nowDate >= startTime && nowDate <= endTime; // Hozirgi vaqt period ichida
+              console.log({
+                startTimestampPeriod,
+                endTimestampPeriod,
+                nowTimestamp,
+              });
+              return (
+                nowTimestamp >= startTimestampPeriod &&
+                nowTimestamp <= endTimestampPeriod
+              );
             });
 
             // Hafta kuni bo'yicha tekshiruv
             const isWeekDayValid =
               prom?.params?.week_days &&
-              prom.params.week_days[adjustedWeekDay] === "1";
+              prom.params.week_days[adjustedWeekDay] == "1";
 
             // Uchala shart bajarilishi kerak
             return isDateValid && isPeriodValid && isWeekDayValid;
           });
+
           filterPromotions = filterPromotions.map((fpr) => {
             const findDiscount = discountProducts?.find(
               (ds) => ds?.discount?.promotion_id == fpr?.promotion_id
             );
 
-            if (findDiscount) {
-              return {
-                ...fpr,
-                active: true,
-              };
-            } else {
-              return fpr;
-            }
+            return findDiscount ? { ...fpr, active: true } : fpr;
           });
+
           console.log(filterPromotions, "discount");
           if (filterPromotions) {
             setDiscounts(filterPromotions);

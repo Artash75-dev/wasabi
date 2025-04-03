@@ -60,7 +60,7 @@ export default function NotificationModalAdmin({ products }) {
         };
       }
 
-      const filterProducts = products
+      let filterProducts = products
         ?.filter((pr) => {
           const findProduct = order?.products?.find(
             (op) => +op?.product_id === +pr?.product_id
@@ -87,11 +87,15 @@ export default function NotificationModalAdmin({ products }) {
       console.log({ filterProducts });
 
       if (filterProducts.length > 0) {
-        const filterProductData = filterProducts.filter(
-          (prd) => !prd.promotion_id
-        );
+        const filterProductData = filterProducts.filter((prd) => {
+          if (Number(prd.promotion_id) > 0) {
+            return false;
+          } else {
+            return true;
+          }
+        });
         if (filterProductData?.length > 0) {
-          setProductsData(filterProducts);
+          setProductsData(filterProductData);
         } else {
           setProductsData([]);
         }

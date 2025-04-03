@@ -430,16 +430,20 @@ export default function OrderDialog({
         // 2. Aktiv, lekin discount yo'q
         activeNoDiscountProductsTotal += calculateProductTotal(product, false);
       });
-      discountProducts?.forEach((product) => {
-        if (product?.discount?.active) {
-          activeWithDiscountProductsTotal += calculateProductTotal(
-            product,
-            true
-          );
-        } else {
-          activeWithDiscountProductsTotal += 0;
-        }
-      });
+      if (discountProducts?.length > 0) {
+        discountProducts?.forEach((product) => {
+          if (product?.discount?.active) {
+            activeWithDiscountProductsTotal += calculateProductTotal(
+              product,
+              true
+            );
+          } else {
+            activeWithDiscountProductsTotal += 0;
+          }
+        });
+      } else {
+        activeWithDiscountProductsTotal = 0;
+      }
       // Client aksiyasini qo‘llash faqat "aktiv va discount yo'q" mahsulotlarga
       if (orderData?.client?.client) {
         try {
@@ -493,6 +497,7 @@ export default function OrderDialog({
   }, [
     products,
     orderData?.client,
+    discountProducts,
     discountProducts?.discount?.active,
     reload,
     discounts,
