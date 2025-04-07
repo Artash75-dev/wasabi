@@ -36,12 +36,19 @@ export default function NotificationModalAdmin({ products }) {
   const [isLoading, setIsLoading] = useState(true);
   const [isOpen, setIsOpen] = useState(false);
   const { setOrderData, orderData: orderCheck } = orderCreateInfo();
-  const { setProductsData, setDiscountsProduct, resetProduct, removeDiscount } =
-    useProductStore();
+  const {
+    setProducts,
+    setProductsData,
+    setDiscountsProduct,
+    resetProduct,
+    removeDiscount,
+  } = useProductStore();
   const { playSound } = useAudio();
   const [branches, setBranches] = useState([]);
   const router = useRouter();
   const handleClick = async (order) => {
+    setProductsData([]);
+    setDiscountsProduct([]);
     setLoading(true);
     try {
       console.log(order);
@@ -87,18 +94,21 @@ export default function NotificationModalAdmin({ products }) {
       console.log({ filterProducts });
 
       if (filterProducts.length > 0) {
-        const filterProductData = filterProducts.filter((prd) => {
-          if (Number(prd.promotion_id) > 0) {
-            return false;
-          } else {
-            return true;
-          }
+        filterProducts.map((prd) => {
+          return setProducts(prd);
         });
-        if (filterProductData?.length > 0) {
-          setProductsData(filterProductData);
-        } else {
-          setProductsData([]);
-        }
+        // const filterProductData = filterProducts.filter((prd) => {
+        //   if (Number(prd.promotion_id) > 0) {
+        //     return false;
+        //   } else {
+        //     return true;
+        //   }
+        // });
+        // if (filterProductData?.length > 0) {
+        //   setProductsData(filterProductData);
+        // } else {
+        //   setProductsData([]);
+        // }
         let orderComment = order?.comment;
 
         if (clientData?.client?.comment) {
@@ -148,26 +158,26 @@ export default function NotificationModalAdmin({ products }) {
           pay_card: order?.payment_method == "Карта" ? order?.total : 0,
         });
 
-        const filterDiscount = filterProducts?.filter((pr) => pr.promotion_id);
-        console.log({ filterDiscount });
+        // const filterDiscount = filterProducts?.filter((pr) => pr.promotion_id);
+        // console.log({ filterDiscount });
 
-        if (filterDiscount.length > 0) {
-          filterDiscount?.map((fp) => {
-            const findDiscount = discount?.find(
-              (pr) => +pr?.promotion_id === +fp?.promotion_id
-            );
-            console.log({ findDiscount });
+        // if (filterDiscount.length > 0) {
+        //   filterDiscount?.map((fp) => {
+        //     const findDiscount = discount?.find(
+        //       (pr) => +pr?.promotion_id === +fp?.promotion_id
+        //     );
+        //     console.log({ findDiscount });
 
-            if (findDiscount) {
-              setDiscountsProduct(fp, {
-                ...findDiscount,
-                active: true,
-              });
-            }
-          });
-        } else {
-          setDiscountsProduct();
-        }
+        //     if (findDiscount) {
+        //       setDiscountsProduct(fp, {
+        //         ...findDiscount,
+        //         active: true,
+        //       });
+        //     }
+        //   });
+        // } else {
+        //   setDiscountsProduct();
+        // }
       }
     } catch (error) {
     } finally {

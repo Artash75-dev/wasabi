@@ -138,7 +138,7 @@ const useProductStore = create((set) => ({
       }
       //discount active products
       const activeDiscountProducts = updatedProducts.filter((p) => {
-        const activeDiscountPr = noDiscountProducts.find(
+        const activeDiscountPr = noDiscountProducts?.find(
           (ndp) => ndp?.product_id == p?.product_id
         );
         const activeDiscountCt = noDisccountCategories?.find(
@@ -2416,7 +2416,6 @@ const useProductStore = create((set) => ({
         products: updatedProducts,
       };
     }),
-
   removeDiscount: () =>
     set(() => {
       return { discountProducts: [] };
