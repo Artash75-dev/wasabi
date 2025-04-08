@@ -69,29 +69,28 @@ export default function NotificationModalAdmin({ products }) {
 
       let filterProducts = products
         ?.filter((pr) => {
+          // Check if product exists in order.products
           const findProduct = order?.products?.find(
             (op) => +op?.product_id === +pr?.product_id
           );
-
-          if (findProduct) {
-            return {
-              ...pr,
-              count: findProduct?.count,
-              promotion_id: findProduct?.promotion_id,
-            };
-          }
-
-          return false; // Mos kelmasa, filter uni chiqarib yuboradi
+          // Return true if product is found in order
+          return !!findProduct;
         })
-        .map((pr) => ({
-          ...pr,
-          count: order.products.find((op) => +op.product_id === +pr.product_id)
-            ?.count,
-          promotion_id: order.products.find(
+        .flatMap((pr) => {
+          const orderProduct = order.products.find(
             (op) => +op.product_id === +pr.product_id
-          )?.promotion_id,
-        }));
-      console.log({ filterProducts });
+          );
+          const productCount = orderProduct?.count || pr.count || 1;
+
+          // Create an array with length equal to count and map to individual products
+          return Array.from({ length: productCount }, () => ({
+            ...pr,
+            count: 1, // Each split product has count of 1
+            promotion_id: orderProduct?.promotion_id || pr.promotion_id || null,
+          }));
+        });
+
+      console.log(filterProducts, "filterProducts");
 
       if (filterProducts.length > 0) {
         filterProducts.map((prd) => {
