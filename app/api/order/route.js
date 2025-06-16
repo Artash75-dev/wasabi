@@ -177,18 +177,26 @@ export async function POST(request) {
     });
     let response;
     let addressData = "";
+    console.log({ address });
     if (address) {
       addressData = address;
     } else {
-      if (status == "bot" && location.longitude && location.latitude) {
+      if (
+        status == "bot" &&
+        location.longitude &&
+        location.latitude &&
+        location?.latitude != 0 &&
+        location?.longitude != 0
+      ) {
         const res = await fetch(
           `https://nominatim.openstreetmap.org/reverse?lat=${location?.latitude}&lon=${location?.longitude}&format=json&accept-language=ru`
         );
         const addressRes = await res.json();
         addressData = addressRes?.display_name;
-        console.log(addressRes?.display_name);
+        console.log(addressRes);
       }
     }
+    console.log("Address Data:", addressData);
     const payload = {
       spot_id: Number(spot_id),
       phone,
@@ -254,7 +262,7 @@ export async function POST(request) {
         },
       };
     }
-    if (status === "bot") {
+    if (status == "bot") {
       response = await fetchMutation(api.order.put, payload);
     } else if (status === "bot-creating") {
       const change = await fetchMutation(api.order.patch, {
