@@ -181,19 +181,18 @@ export async function POST(request) {
     if (address) {
       addressData = address;
     } else {
-      if (
-        status == "bot" &&
-        location.longitude &&
-        location.latitude &&
-        location?.latitude != 0 &&
-        location?.longitude != 0
-      ) {
-        const res = await fetch(
-          `https://nominatim.openstreetmap.org/reverse?lat=${location?.latitude}&lon=${location?.longitude}&format=json&accept-language=ru`
-        );
-        const addressRes = await res.json();
-        addressData = addressRes?.display_name;
-        console.log(addressRes);
+      if (status == "bot" && location.longitude && location.latitude) {
+        try {
+          const res = await fetch(
+            `https://nominatim.openstreetmap.org/reverse?lat=${location?.latitude}&lon=${location?.longitude}&format=json&accept-language=ru`
+          );
+          const addressRes = await res.json();
+          addressData = addressRes?.display_name;
+          console.log(addressRes);
+        } catch (error) {
+          addressData = "";
+          console.error("Error fetching address:", error);
+        }
       }
     }
     console.log("Address Data:", addressData);
