@@ -18,11 +18,9 @@ import { Settings } from "lucide-react";
 
 // URLs and other constants
 const DEFAULT_COORDINATES = [41.318414, 69.334156];
-const USER_ICON =
-  "https://fkkpuaszmvpxjoqqmlzx.supabase.co/storage/v1/object/public/wassabi/DALL_E_2024-12-21_17.07.07_-_A_red_location_pin_icon_designed_for_couriers__similar_to_the_uploaded_image._The_pin_should_feature_a_truck_carrying_a_package_symbol_in_the_center._-removebg-preview.png";
+const USER_ICON = "https://wasabi-admin.onrender.com/_next/image?url=%2Ficons%2Fbranch1.png&w=96&q=75";
+const BRANCH_ICON = "https://wasabi-admin.onrender.com/_next/image?url=%2Ficons%2Fuser.png&w=96&q=75";
 
-const BRANCH_ICON =
-  "https://fkkpuaszmvpxjoqqmlzx.supabase.co/storage/v1/object/public/wassabi/wassabi-location.png";
 
 function AllOrderMap({ status, height, handleClose, user_id }) {
   const [coordinates, setCoordinates] = useState(DEFAULT_COORDINATES);

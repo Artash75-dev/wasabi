@@ -20,8 +20,8 @@ import { exitToast } from "@/lib/functions";
 
 // URLs and other constants
 const DEFAULT_COORDINATES = [41.318414, 69.334156];
-const USER_ICON = "https://fkkpuaszmvpxjoqqmlzx.supabase.co/storage/v1/object/public/wassabi/DALL_E_2024-09-25_15.04.54_-_Create_a_location_pin_icon_similar_to_the_uploaded_image__with_a_design_tailored_for_couriers._The_pin_should_have_a_light_blue_color_with_a_simple__c-removebg-preview.png";
-const BRANCH_ICON = "https://fkkpuaszmvpxjoqqmlzx.supabase.co/storage/v1/object/public/wassabi/wassabi-location.png";
+const USER_ICON = "https://wasabi-admin.onrender.com/_next/image?url=%2Ficons%2Fbranch1.png&w=96&q=75";
+const BRANCH_ICON = "https://wasabi-admin.onrender.com/_next/image?url=%2Ficons%2Fuser.png&w=96&q=75";
 
 function AllOrderMap({ status, height, handleClose }) {
   const [coordinates, setCoordinates] = useState(DEFAULT_COORDINATES);

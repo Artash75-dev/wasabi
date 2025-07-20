@@ -667,7 +667,7 @@ const OrderMap = ({ orderData, setOrderData, branches, clientData }) => {
                   options={{
                     iconLayout: "default#image",
                     iconImageHref:
-                      "https://fkkpuaszmvpxjoqqmlzx.supabase.co/storage/v1/object/public/wassabi/1365700-removebg-preview.png",
+                      "https://wasabi-admin.onrender.com/_next/image?url=%2Ficons%2Fuser.png&w=96&q=75",
                     iconImageSize: [40, 40],
                     iconImageOffset: [-20, -40],
                   }}
@@ -695,8 +695,8 @@ const OrderMap = ({ orderData, setOrderData, branches, clientData }) => {
                         iconLayout: "default#image",
                         iconImageHref:
                           branch?.spot_id == orderData?.spot_id
-                            ? "https://fkkpuaszmvpxjoqqmlzx.supabase.co/storage/v1/object/public/wassabi/wassabi-location.png"
-                            : "https://fkkpuaszmvpxjoqqmlzx.supabase.co/storage/v1/object/public/wassabi/food.png", // Ensure this path is correct
+                            ? "https://wasabi-admin.onrender.com/_next/image?url=%2Ficons%2Fbranch1.png&w=96&q=75"
+                            : "https://wasabi-admin.onrender.com/_next/image?url=%2Ficons%2Fbranch.png&w=96&q=75", // Ensure this path is correct
                         iconImageSize:
                           branch?.spot_id == orderData?.spot_id
                             ? [40, 40]

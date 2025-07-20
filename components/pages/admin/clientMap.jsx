@@ -118,7 +118,7 @@ const ClientMap = ({ updateData, addLocation }) => {
                 options={{
                   iconLayout: "default#image",
                   iconImageHref:
-                    "https://fkkpuaszmvpxjoqqmlzx.supabase.co/storage/v1/object/public/wassabi/1365700-removebg-preview.png",
+                    "https://wasabi-admin.onrender.com/_next/image?url=%2Ficons%2Fuser.png&w=96&q=75",
                   iconImageSize: [70, 70],
                   iconImageOffset: [-35, -70],
                 }}
@@ -195,7 +195,7 @@ const ClientMap = ({ updateData, addLocation }) => {
                   options={{
                     iconLayout: "default#image",
                     iconImageHref:
-                      "https://fkkpuaszmvpxjoqqmlzx.supabase.co/storage/v1/object/public/wassabi/1365700-removebg-preview.png",
+                      "https://wasabi-admin.onrender.com/_next/image?url=%2Ficons%2Fuser.png&w=96&q=75",
                     iconImageSize: [70, 70],
                     iconImageOffset: [-35, -70],
                   }}
