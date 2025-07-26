@@ -2,7 +2,6 @@
 import { v } from "convex/values";
 import { mutation, query } from "./_generated/server";
 
-// Get all orders
 export const get = query({
   args: {},
   handler: async (ctx) => {
@@ -48,6 +47,21 @@ export const getByChatId = query({
   },
 });
 
+export const deleteAllOrdersBatch = mutation({
+  args: {},
+  handler: async (ctx) => {
+    const batchSize = 200;
+
+    const orders = await ctx.db.query("order").take(batchSize);
+
+    for (const order of orders) {
+      await ctx.db.delete(order._id);
+    }
+
+    return { deleted: orders.length };
+  },
+});
+
 export const getByDeliverId = query({
   args: {
     status: v.optional(v.string()), // Optional status
@@ -66,6 +80,7 @@ export const getByDeliverId = query({
     return orders;
   },
 });
+
 export const put = mutation({
   args: {
     spot_id: v.float64(),

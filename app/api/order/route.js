@@ -164,17 +164,19 @@ export async function POST(request) {
       return acc;
     }, []);
 
-    const promotionData = discountProducts.map((prd) => {
-      return {
+    const promotionData = discountProducts.flatMap((prd) => {
+      // Har bir product uchun count miqdoricha takrorlash
+      return Array.from({ length: prd.count }, () => ({
         id: prd.promotion_id,
         involved_products: [
           {
             id: prd?.product_id,
-            count: prd?.count,
+            count: 1, // Har bir yangi elementda count 1 bo'ladi
           },
         ],
-      };
+      }));
     });
+
     let response;
     let addressData = "";
     console.log({ address });
@@ -261,6 +263,9 @@ export async function POST(request) {
         },
       };
     }
+    console.log({ posterPayload });
+    console.log(JSON.stringify(posterPayload));
+    console.log("Promotion Data:", JSON.stringify(promotionData));
     if (status == "bot") {
       response = await fetchMutation(api.order.put, payload);
     } else if (status === "bot-creating") {
@@ -301,7 +306,6 @@ export async function POST(request) {
       response = { ...change, ...postToPoster };
     }
     console.log(response);
-    console.log(posterPayload);
 
     return new Response(JSON.stringify(response), { status: 200 });
   } catch (error) {

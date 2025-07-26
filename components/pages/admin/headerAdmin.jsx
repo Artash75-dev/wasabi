@@ -14,7 +14,7 @@ import NavItems from "@/components/shared/navItems";
 import Container from "@/components/shared/container";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { createOrder } from "@/public/images";
-import { LogOut, RefreshCw } from "lucide-react";
+import { BrushIcon, LogOut, RefreshCw, Trash2 } from "lucide-react";
 import Image from "next/image";
 import Cookies from "js-cookie";
 import axios from "axios";
@@ -46,6 +46,25 @@ const clearCache = async () => {
     toast.error("Failed to clear cache");
   }
 };
+
+const clearOrders = async () => {
+  try {
+    const response = await fetch('/api/orders/clear', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+    });
+    if (!response.ok) {
+      throw new Error('Failed to clear orders');
+    }
+    toast.success("Orders cleared successfully");
+    router.refresh();
+  } catch (error) {
+    console.error("Error clearing orders:", error);
+    toast.error("Failed to clear orders");
+  }
+}
 
   useEffect(() => {
     const fetchData = async () => {
@@ -114,6 +133,13 @@ const clearCache = async () => {
               >
                 <RefreshCw size={16} />
                 <h1>Очистить кэш</h1>
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                className="flex justify-start items-center gap-2"
+                onClick={clearOrders}
+              >
+                <Trash2 size={16} />
+                <h1>Очистить заказы</h1>
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
