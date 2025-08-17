@@ -140,13 +140,13 @@ export default function NotificationModalAdmin({ products }) {
           serviceOption:
             order?.service_mode == 2
               ? {
-                  name: "Навынос",
-                  service_mode: 2,
-                }
+                name: "Навынос",
+                service_mode: 2,
+              }
               : {
-                  name: "Доставка",
-                  service_mode: 3,
-                },
+                name: "Доставка",
+                service_mode: 3,
+              },
           client: clientData,
           delivery_price: 0,
           pers_num: order?.pers_num,
@@ -266,9 +266,8 @@ export default function NotificationModalAdmin({ products }) {
         <button
           onClick={() => setIsOpen(true)}
           data-count={orderData?.length}
-          className={`${
-            orderData.length > 0 && "notf-count"
-          } relative p-3 rounded-full hover:bg-secondary-foreground transition-all duration-300 ease-linear`}
+          className={`${orderData.length > 0 && "notf-count"
+            } relative p-3 rounded-full hover:bg-secondary-foreground transition-all duration-300 ease-linear`}
         >
           <IoMdNotificationsOutline className="text-gray-500 text-2xl" />
         </button>
@@ -315,6 +314,14 @@ export default function NotificationModalAdmin({ products }) {
                         </div>
                         <p className="textSmall1">Через бота</p>
                       </div>
+                      {order?.promocode && (
+                        <div className="flex w-full justify-between items-center">
+                          <div className="textSmall1">
+                            Промо-код
+                          </div>
+                          <p className="textSmall1">{order?.promocode}</p>
+                        </div>
+                      )}
                       <div className="flex justify-end items-center gap-3 w-full">
                         <Link
                           className="w-full"
