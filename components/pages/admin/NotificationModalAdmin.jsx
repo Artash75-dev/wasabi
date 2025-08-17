@@ -241,6 +241,7 @@ export default function NotificationModalAdmin({ products }) {
 
   useEffect(() => {
     if (orderData.length > 0) {
+      console.log(orderData)
       AdminNewOrderToast(orderData?.length);
       playSound("notification.mp3");
     }

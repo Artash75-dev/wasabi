@@ -145,6 +145,7 @@ export default function OrderDialog({
           serviceOption,
           pay_bonus,
           pay_sertificate,
+          promocode
         } = orderData;
 
         let filterProducts = products?.map((p) => {
@@ -232,6 +233,9 @@ export default function OrderDialog({
         if (serviceOption?.id) {
           orderComment = `Тип доставки - ${serviceOption?.name}\n\n${orderComment}`;
         }
+        if (promocode) {
+          orderComment = `Промо-код - ${promocode}\n\n${orderComment}`;
+        }
         const deliverPrice =
           serviceOption?.service_mode == 2
             ? 0
@@ -249,9 +253,9 @@ export default function OrderDialog({
             Number(serviceOption?.service_mode) == 3
               ? location
               : {
-                  latitude: 0,
-                  longitude: 0,
-                },
+                latitude: 0,
+                longitude: 0,
+              },
           status: status == "bot" ? "bot-creating" : "created",
           client_id: Number(clientData?.client_id),
           delivery_price: deliverPrice,
@@ -468,7 +472,7 @@ export default function OrderDialog({
                   roundToTwoDecimals(+client_groups_discount / 100);
                 activeNoDiscountProductsTotal = roundToTwoDecimals(
                   activeNoDiscountProductsTotal *
-                    (1 - +client_groups_discount / 100)
+                  (1 - +client_groups_discount / 100)
                 );
               }
             }
@@ -1061,7 +1065,7 @@ const TotalInfo = ({ orderData, setOrderData, orderSources }) => {
     const sanitizedCertificate = Math.min(
       Math.max(0, +value.replace(/^0+(?!$)/, "")),
       orderData?.total +
-        (orderData?.service_mode == 2 ? 0 : +orderData?.delivery_price)
+      (orderData?.service_mode == 2 ? 0 : +orderData?.delivery_price)
     );
 
     if (sanitizedCertificate == totalSum) {
@@ -1090,7 +1094,7 @@ const TotalInfo = ({ orderData, setOrderData, orderSources }) => {
     const sanitizedCertificate = Math.min(
       Math.max(0, +value.replace(/^0+(?!$)/, "")),
       orderData?.total +
-        (orderData?.service_mode == 2 ? 0 : +orderData?.delivery_price)
+      (orderData?.service_mode == 2 ? 0 : +orderData?.delivery_price)
     );
 
     if (sanitizedCertificate == totalSum) {
@@ -1119,7 +1123,7 @@ const TotalInfo = ({ orderData, setOrderData, orderSources }) => {
     const sanitizedCertificate = Math.min(
       Math.max(0, +value.replace(/^0+(?!$)/, "")),
       orderData?.total +
-        (orderData?.service_mode == 2 ? 0 : +orderData?.delivery_price)
+      (orderData?.service_mode == 2 ? 0 : +orderData?.delivery_price)
     );
 
     if (sanitizedCertificate == totalSum) {
@@ -1159,9 +1163,9 @@ const TotalInfo = ({ orderData, setOrderData, orderSources }) => {
       pay.type === type
         ? { ...pay, value: sanitizedValue }
         : {
-            ...pay,
-            value: remainingAmount - sanitizedValue,
-          }
+          ...pay,
+          value: remainingAmount - sanitizedValue,
+        }
     );
 
     setPaymentData(updatedPayments);

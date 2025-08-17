@@ -74,6 +74,8 @@ export async function POST(request) {
       client_address_id,
       pay_payme,
       pay_click,
+      promocode,
+      promocode_id
     } = args;
 
     let productsData = products.map((item) => {
@@ -228,6 +230,7 @@ export async function POST(request) {
       pay_sertificate: Number(pay_sertificate),
       pay_bonus: Number(pay_bonus),
       client_address_id: Number(client_address_id),
+      promocode,
     };
     let posterPayload;
     if (service_mode == 2) {
