@@ -280,7 +280,7 @@ export default function NotificationModalAdmin({ products }) {
     );
 
     if (newOrders.length > 0) {
-      AdminNewOrderToast(newOrders.length);
+      AdminNewOrderToast(newOrders);
       playSound("notification.mp3");
     }
 
