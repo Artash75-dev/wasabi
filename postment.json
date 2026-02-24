@@ -7,7 +7,7 @@
   "variable": [
     {
       "key": "baseUrl",
-      "value": "http://localhost:9020"
+      "value": "https://wasabi-admin.onrender.com"
     },
     {
       "key": "phone",
