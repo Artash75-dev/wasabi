@@ -15,6 +15,7 @@ import { api } from "@/convex/_generated/api";
 import { OctagonX, PackagePlus } from "lucide-react";
 import { formatCreationTime, showNewOrderToast } from "@/lib/functions";
 import useAudio from "@/hooks/use-audio";
+import { getSourceTitle } from "@/lib/orderSource";
 
 export default function NotificationModal({ authData }) {
   const [isOpen, setIsOpen] = useState(false);
@@ -79,7 +80,9 @@ export default function NotificationModal({ authData }) {
                         <div className="textSmall1">
                           <h1>{formatCreationTime(order?._creationTime)}</h1>
                         </div>
-                        <p className="textSmall1">Через бота</p>
+                        <p className="textSmall1">
+                          {getSourceTitle(order?.status)}
+                        </p>
                       </div>
                     </div>
                   </div>

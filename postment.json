@@ -1,0 +1,83 @@
+{
+  "info": {
+    "_postman_id": "b3f5d2c8-2c19-4d89-9f1e-2d6a742e2a11",
+    "name": "Wasabi Order API",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:9020"
+    },
+    {
+      "key": "phone",
+      "value": "+998910800616"
+    },
+    {
+      "key": "clientId",
+      "value": "6221"
+    },
+    {
+      "key": "spotId",
+      "value": "1"
+    },
+    {
+      "key": "spotName",
+      "value": "Wasabi"
+    }
+  ],
+  "item": [
+    {
+      "name": "Order Create - Website",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"spot_id\": {{spotId}},\n  \"phone\": \"{{phone}}\",\n  \"products\": [\n    {\n      \"product_name\": \"Абрикос сок 200 мл\",\n      \"product_id\": \"353\",\n      \"count\": 1,\n      \"modifications\": [],\n      \"category_name\": \"Напитки\",\n      \"menu_category_id\": \"3\",\n      \"photo\": \"/upload/pos_cdb_267347/menu/product_1734407970_353.jpeg\",\n      \"price\": 6000\n    }\n  ],\n  \"service_mode\": 2,\n  \"payment_method\": \"Наличными\",\n  \"total\": 6000,\n  \"chat_id\": 0,\n  \"location\": {\n    \"latitude\": 0,\n    \"longitude\": 0\n  },\n  \"status\": \"website\",\n  \"client_id\": {{clientId}},\n  \"delivery_price\": 0,\n  \"transaction_id\": 0,\n  \"incoming_order_id\": 0,\n  \"deliver_name\": \"\",\n  \"address\": \"улица Богишамол, 1\",\n  \"client_name\": \"Baxtiyorov Oybek\",\n  \"spot_name\": \"{{spotName}}\",\n  \"comment\": \"Order from website\",\n  \"pers_num\": 0,\n  \"bonus\": 0,\n  \"delivery_time\": 60,\n  \"discount_price\": 0,\n  \"serviceOption\": {\n    \"name\": \"Навынос\",\n    \"service_mode\": 2\n  },\n  \"pay_cash\": 6000,\n  \"pay_card\": 0,\n  \"pay_sertificate\": 0,\n  \"pay_bonus\": 0,\n  \"client_address_id\": 0,\n  \"pay_payme\": 0,\n  \"pay_click\": 0,\n  \"promocode\": \"\"\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/order",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "order"
+          ]
+        }
+      }
+    },
+    {
+      "name": "Order Create - Mobile",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"spot_id\": {{spotId}},\n  \"phone\": \"{{phone}}\",\n  \"products\": [\n    {\n      \"product_name\": \"Абрикос сок 200 мл\",\n      \"product_id\": \"353\",\n      \"count\": 1,\n      \"modifications\": [],\n      \"category_name\": \"Напитки\",\n      \"menu_category_id\": \"3\",\n      \"photo\": \"/upload/pos_cdb_267347/menu/product_1734407970_353.jpeg\",\n      \"price\": 6000\n    }\n  ],\n  \"service_mode\": 2,\n  \"payment_method\": \"Наличными\",\n  \"total\": 6000,\n  \"chat_id\": 0,\n  \"location\": {\n    \"latitude\": 0,\n    \"longitude\": 0\n  },\n  \"status\": \"mobile\",\n  \"client_id\": {{clientId}},\n  \"delivery_price\": 0,\n  \"transaction_id\": 0,\n  \"incoming_order_id\": 0,\n  \"deliver_name\": \"\",\n  \"address\": \"улица Богишамол, 1\",\n  \"client_name\": \"Baxtiyorov Oybek\",\n  \"spot_name\": \"{{spotName}}\",\n  \"comment\": \"Order from mobile\",\n  \"pers_num\": 0,\n  \"bonus\": 0,\n  \"delivery_time\": 60,\n  \"discount_price\": 0,\n  \"serviceOption\": {\n    \"name\": \"Навынос\",\n    \"service_mode\": 2\n  },\n  \"pay_cash\": 6000,\n  \"pay_card\": 0,\n  \"pay_sertificate\": 0,\n  \"pay_bonus\": 0,\n  \"client_address_id\": 0,\n  \"pay_payme\": 0,\n  \"pay_click\": 0,\n  \"promocode\": \"\"\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/order",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "order"
+          ]
+        }
+      }
+    }
+  ]
+}

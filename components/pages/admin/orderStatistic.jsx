@@ -12,16 +12,18 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { filterOrdersByTimeRange } from "@/lib/functions";
-import { useEffect, useMemo, useState } from "react";
+import { useMemo } from "react";
+
 export default function OrderStatistic() {
-  const orderData = useQuery(api.order.get) || [];
+  const orderData = useQuery(api.order.get);
   const { timeRange, setTimeRange } = useEvent();
 
   // Memoize filteredOrders to avoid unnecessary calculations
   const filteredOrders = useMemo(
-    () => filterOrdersByTimeRange(orderData, timeRange),
+    () => filterOrdersByTimeRange(orderData ?? [], timeRange),
     [orderData, timeRange]
   );
+
   return (
     <>
       <div className="w-full grid grid-cols-4 gap-3">

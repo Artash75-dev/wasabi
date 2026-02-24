@@ -42,6 +42,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { roundToTwoDecimals } from "@/lib/functions";
+import { getCreatingStatus } from "@/lib/orderSource";
 
 const socket = io();
 
@@ -256,7 +257,7 @@ export default function OrderDialog({
                 latitude: 0,
                 longitude: 0,
               },
-          status: status == "bot" ? "bot-creating" : "created",
+          status: getCreatingStatus(status),
           client_id: Number(clientData?.client_id),
           delivery_price: deliverPrice,
           client_name: clientData?.firstname + " " + clientData?.lastname,

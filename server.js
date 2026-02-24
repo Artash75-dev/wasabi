@@ -7,7 +7,7 @@ import dotenv from "dotenv";
 dotenv.config();
 const dev = process.env.NODE_ENV !== "production";
 const hostname = "localhost";
-const port = 9000;
+const port = 9020;
 const app = next({ dev, hostname, port });
 const handler = app.getRequestHandler();
 const courierLocations = {};
@@ -74,7 +74,7 @@ app.prepare().then(() => {
     cors: {
       origin: [
         "*",
-        "http://localhost:9000",
+        "http://localhost:9020",
         "https://joinposter.com",
         "https://platform.joinposter.com",
       ],
@@ -135,7 +135,7 @@ app.prepare().then(() => {
 
 // const dev = process.env.NODE_ENV !== "production";
 // const hostname = "localhost";
-// const port = 9000;
+// const port = 9020;
 // // when using middleware `hostname` and `port` must be provided below
 // const app = next({ dev, hostname, port });
 // const handler = app.getRequestHandler();

@@ -20,6 +20,7 @@ import toast from "react-hot-toast";
 import { PiListStarFill } from "react-icons/pi";
 import { FaWallet } from "react-icons/fa6";
 import { cn } from "@/lib/utils";
+import { isBotLikeSource } from "@/lib/orderSource";
 
 const ClientInfo = () => {
   const {
@@ -176,7 +177,7 @@ const ClientInfo = () => {
             form.setValue("birthday", birthday);
             form.setValue("phone", `+${phone_number}`);
             if (
-              orderData?.status == "bot" &&
+              isBotLikeSource(orderData?.status) &&
               orderData?.location?.latitude &&
               orderData?.location?.longitude
             ) {
@@ -292,7 +293,7 @@ const ClientInfo = () => {
   }, [newClient]);
 
   useEffect(() => {
-    if (orderData?.status == "bot") {
+    if (isBotLikeSource(orderData?.status)) {
       setUpdateData({
         location: {
           latitude: Number(orderData?.location?.latitude),

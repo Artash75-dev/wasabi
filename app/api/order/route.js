@@ -1,5 +1,9 @@
 import { api } from "@/convex/_generated/api";
 import { ApiService } from "@/lib/api.services";
+import {
+  isBotLikeCreatingSource,
+  isBotLikeSource,
+} from "@/lib/orderSource";
 import { postApi } from "@/lib/requestApi";
 import { fetchMutation, fetchQuery } from "convex/nextjs";
 
@@ -185,7 +189,7 @@ export async function POST(request) {
     if (address) {
       addressData = address;
     } else {
-      if (status == "bot" && location.longitude && location.latitude) {
+      if (isBotLikeSource(status) && location.longitude && location.latitude) {
         try {
           const res = await fetch(
             `https://nominatim.openstreetmap.org/reverse?lat=${location?.latitude}&lon=${location?.longitude}&format=json&accept-language=ru`
@@ -269,9 +273,9 @@ export async function POST(request) {
     console.log({ posterPayload });
     console.log(JSON.stringify(posterPayload));
     console.log("Promotion Data:", JSON.stringify(promotionData));
-    if (status == "bot") {
+    if (isBotLikeSource(status)) {
       response = await fetchMutation(api.order.put, payload);
-    } else if (status === "bot-creating") {
+    } else if (isBotLikeCreatingSource(status)) {
       const change = await fetchMutation(api.order.patch, {
         ...payload,
         status: "created",

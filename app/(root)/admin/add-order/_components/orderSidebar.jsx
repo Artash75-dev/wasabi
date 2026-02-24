@@ -9,6 +9,7 @@ import Client from "./client";
 import Discount from "./discount";
 import axios from "axios";
 import { getData } from "@/actions/get";
+import { getSourceTitle, isBotLikeSource } from "@/lib/orderSource";
 
 export default function SideBarOrder({
   categoryData,
@@ -169,9 +170,9 @@ export default function SideBarOrder({
 
               {item?.id == 2 && (
                 <>
-                  {orderData?.status == "bot" && (
+                  {isBotLikeSource(orderData?.status) && (
                     <div className="z-[100] textSmall1 top-0 right-2 text-black">
-                      через бота
+                      {getSourceTitle(orderData?.status).toLowerCase()}
                     </div>
                   )}
                 </>

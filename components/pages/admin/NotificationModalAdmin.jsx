@@ -7,7 +7,7 @@ import {
   SheetTitle,
   SheetTrigger,
 } from "@/components/ui/sheet";
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import { IoMdNotificationsOutline } from "react-icons/io";
 import { useQuery } from "convex/react";
 import { api } from "@/convex/_generated/api";
@@ -20,11 +20,22 @@ import axios from "axios";
 import Loader from "@/components/shared/loader";
 import { Button } from "@/components/ui/button";
 import { useRouter } from "next/navigation";
+import {
+  getSourceTitle,
+  isBotLikeSource,
+} from "@/lib/orderSource";
 
 export default function NotificationModalAdmin({ products }) {
-  const updateOrder = 12;
-  const orderData = useQuery(api.order.getByStatus, { status: "bot" }) || [];
-  const { discounts: discount } = useProductStore();
+  const botOrders = useQuery(api.order.getByStatus, { status: "bot" });
+  const websiteOrders = useQuery(api.order.getByStatus, { status: "website" });
+  const mobileOrders = useQuery(api.order.getByStatus, { status: "mobile" });
+  const orderData = useMemo(
+    () =>
+      [...(botOrders ?? []), ...(websiteOrders ?? []), ...(mobileOrders ?? [])].sort(
+        (a, b) => b._creationTime - a._creationTime
+      ),
+    [botOrders, websiteOrders, mobileOrders]
+  );
   const {
     setSearchClientValue,
     setClients,
@@ -45,6 +56,8 @@ export default function NotificationModalAdmin({ products }) {
   } = useProductStore();
   const { playSound } = useAudio();
   const [branches, setBranches] = useState([]);
+  const isNotificationInitialized = useRef(false);
+  const knownOrderIds = useRef(new Set());
   const router = useRouter();
   const handleClick = async (order) => {
     setProductsData([]);
@@ -136,7 +149,7 @@ export default function NotificationModalAdmin({ products }) {
           total: order?.total,
           chat_id: order?.chat_id,
           location: order?.location,
-          status: "bot",
+          status: order?.status,
           serviceOption:
             order?.service_mode == 2
               ? {
@@ -226,7 +239,7 @@ export default function NotificationModalAdmin({ products }) {
         status: "cancelled",
       });
       if (
-        orderCheck.status == "bot" &&
+        isBotLikeSource(orderCheck.status) &&
         order?.client_id == orderCheck?.client?.client?.client_id
       ) {
         setIsOpen(false);
@@ -240,11 +253,6 @@ export default function NotificationModalAdmin({ products }) {
   };
 
   useEffect(() => {
-    if (orderData.length > 0) {
-      console.log(orderData)
-      AdminNewOrderToast(orderData?.length);
-      playSound("notification.mp3");
-    }
     (async () => {
       try {
         const client = await axios.get("/api/client");
@@ -256,7 +264,28 @@ export default function NotificationModalAdmin({ products }) {
         setIsLoading(false);
       }
     })();
-  }, [orderData]);
+  }, [setClients]);
+
+  useEffect(() => {
+    const currentIds = new Set(orderData.map((order) => order._id));
+
+    if (!isNotificationInitialized.current) {
+      knownOrderIds.current = currentIds;
+      isNotificationInitialized.current = true;
+      return;
+    }
+
+    const newOrders = orderData.filter(
+      (order) => !knownOrderIds.current.has(order._id)
+    );
+
+    if (newOrders.length > 0) {
+      AdminNewOrderToast(newOrders.length);
+      playSound("notification.mp3");
+    }
+
+    knownOrderIds.current = currentIds;
+  }, [orderData, playSound]);
 
   if (isLoading) return <Loader />;
 
@@ -312,7 +341,9 @@ export default function NotificationModalAdmin({ products }) {
                             order?.service_mode == 3 && <h1>Доставка</h1>
                           )}
                         </div>
-                        <p className="textSmall1">Через бота</p>
+                        <p className="textSmall1">
+                          {getSourceTitle(order?.status)}
+                        </p>
                       </div>
                       {order?.promocode && (
                         <div className="flex w-full justify-between items-center">
