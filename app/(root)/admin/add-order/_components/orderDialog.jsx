@@ -1014,18 +1014,102 @@ const TotalInfo = ({ orderData, setOrderData, orderSources }) => {
     service_mode,
   } = orderData;
   const [isPaymentDialogOpen, setIsPaymentDialogOpen] = useState(false);
-  const [paymentData, setPaymentData] = useState([
-    { type: "Наличными", title: "Наличными", value: null },
-    { type: "Карта", title: "Карта", value: null },
-  ]);
-
   const [selectedOption, setSelectedOption] = useState("");
+  const paymentFieldConfig = [
+    { key: "pay_cash", title: "Наличными" },
+    { key: "pay_card", title: "Карта" },
+    { key: "pay_payme", title: "Payme" },
+    { key: "pay_click", title: "Click" },
+    { key: "pay_bonus", title: "Бонус" },
+    { key: "pay_sertificate", title: "Сертификат" },
+  ];
+  const getPreferredPaymentKey = (paymentMethod) => {
+    switch (paymentMethod) {
+      case "Карта":
+        return "pay_card";
+      default:
+        return "pay_cash";
+    }
+  };
+  const getPaymentAmounts = (source) => ({
+    pay_cash: toNonNegativeNumber(source?.pay_cash),
+    pay_card: toNonNegativeNumber(source?.pay_card),
+    pay_payme: toNonNegativeNumber(source?.pay_payme),
+    pay_click: toNonNegativeNumber(source?.pay_click),
+    pay_bonus: toNonNegativeNumber(source?.pay_bonus),
+    pay_sertificate: toNonNegativeNumber(source?.pay_sertificate),
+  });
+  const getBalancedPayments = (amounts, total, changedKey) => {
+    const nextAmounts = { ...amounts };
+    const keys = Object.keys(nextAmounts);
+    let sum = keys.reduce((acc, key) => acc + nextAmounts[key], 0);
+
+    if (sum > total) {
+      let overflow = sum - total;
+      const reductionKeys = keys
+        .filter((key) => key !== changedKey)
+        .sort((a, b) => nextAmounts[b] - nextAmounts[a]);
+
+      for (const key of reductionKeys) {
+        if (overflow <= 0) {
+          break;
+        }
+
+        const deducted = Math.min(overflow, nextAmounts[key]);
+        nextAmounts[key] -= deducted;
+        overflow -= deducted;
+      }
+
+      if (overflow > 0 && changedKey) {
+        nextAmounts[changedKey] = Math.max(0, nextAmounts[changedKey] - overflow);
+      }
+    }
+
+    sum = keys.reduce((acc, key) => acc + nextAmounts[key], 0);
+    if (sum < total) {
+      const positiveOtherKey = keys
+        .filter((key) => key !== changedKey && nextAmounts[key] > 0)
+        .sort((a, b) => nextAmounts[b] - nextAmounts[a])[0];
+      const fallbackKey =
+        positiveOtherKey ||
+        changedKey ||
+        getPreferredPaymentKey(orderData?.payment_method);
+
+      nextAmounts[fallbackKey] += total - sum;
+    }
+
+    return nextAmounts;
+  };
+  const updatePaymentAmounts = (changedKey, rawValue) => {
+    setOrderData((prev) => {
+      const nextTotal =
+        toNonNegativeNumber(prev?.total) +
+        (prev?.service_mode == 2 ? 0 : toNonNegativeNumber(prev?.delivery_price));
+      const currentAmounts = getPaymentAmounts(prev);
+      const nextValue = getSanitizedAmount(rawValue, nextTotal);
+      const balancedAmounts = getBalancedPayments(
+        {
+          ...currentAmounts,
+          [changedKey]: nextValue,
+        },
+        nextTotal,
+        changedKey
+      );
+
+      return {
+        ...prev,
+        ...balancedAmounts,
+      };
+    });
+  };
   const totalSum =
     toNonNegativeNumber(orderData?.total) +
     (orderData?.service_mode == 2 ? 0 : toNonNegativeNumber(orderData?.delivery_price));
   const remainingAmount = Math.max(
     0,
     totalSum -
+      toNonNegativeNumber(pay_cash) -
+      toNonNegativeNumber(pay_card) -
       toNonNegativeNumber(pay_bonus) -
       toNonNegativeNumber(pay_sertificate) -
       toNonNegativeNumber(pay_payme) -
@@ -1034,98 +1118,19 @@ const TotalInfo = ({ orderData, setOrderData, orderSources }) => {
   const allocatedAmount = Math.max(0, totalSum - remainingAmount);
 
   const handleBonusChange = (value) => {
-    const sanitizedBonus = getSanitizedAmount(
-      value,
-      Math.min(bonusPrice, totalSum)
-    );
-
-    if (sanitizedBonus == totalSum) {
-      setOrderData((prev) => ({
-        ...prev,
-        pay_bonus: sanitizedBonus,
-        pay_sertificate: 0,
-        pay_click: 0,
-        pay_payme: 0,
-      }));
-    } else {
-      setOrderData((prev) => ({
-        ...prev,
-        pay_bonus: sanitizedBonus,
-      }));
-    }
+    updatePaymentAmounts("pay_bonus", Math.min(getSanitizedAmount(value, totalSum), bonusPrice));
   };
 
   const handleCertificateChange = (value) => {
-    const sanitizedCertificate = getSanitizedAmount(value, totalSum);
-
-    if (sanitizedCertificate == totalSum) {
-      setOrderData((prev) => ({
-        ...prev,
-        pay_sertificate: sanitizedCertificate,
-        pay_bonus: 0,
-        pay_click: 0,
-        pay_payme: 0,
-      }));
-    } else {
-      setOrderData((prev) => ({
-        ...prev,
-        pay_sertificate: sanitizedCertificate,
-      }));
-    }
+    updatePaymentAmounts("pay_sertificate", value);
   };
 
   const handlePaymeChange = (value) => {
-    const sanitizedCertificate = getSanitizedAmount(value, totalSum);
-
-    if (sanitizedCertificate == totalSum) {
-      setOrderData((prev) => ({
-        ...prev,
-        pay_payme: sanitizedCertificate,
-        pay_bonus: 0,
-        pay_sertificate: 0,
-        pay_click: 0,
-      }));
-    } else {
-      setOrderData((prev) => ({
-        ...prev,
-        pay_payme: sanitizedCertificate,
-      }));
-    }
+    updatePaymentAmounts("pay_payme", value);
   };
 
   const handleClickChange = (value) => {
-    const sanitizedCertificate = getSanitizedAmount(value, totalSum);
-
-    if (sanitizedCertificate == totalSum) {
-      setOrderData((prev) => ({
-        ...prev,
-        pay_payme: 0,
-        pay_bonus: 0,
-        pay_sertificate: 0,
-        pay_click: sanitizedCertificate,
-      }));
-    } else {
-      setOrderData((prev) => ({
-        ...prev,
-        pay_click: sanitizedCertificate,
-      }));
-    }
-  };
-
-  // Handle cash and card payments
-  const handlePaymentChange = (type, value) => {
-    const sanitizedValue = getSanitizedAmount(value, remainingAmount);
-
-    const updatedPayments = paymentData.map((pay) =>
-      pay.type === type
-        ? { ...pay, value: sanitizedValue }
-        : {
-          ...pay,
-          value: remainingAmount - sanitizedValue,
-        }
-    );
-
-    setPaymentData(updatedPayments);
+    updatePaymentAmounts("pay_click", value);
   };
 
   const handleOptionSelect = (option) => {
@@ -1138,38 +1143,16 @@ const TotalInfo = ({ orderData, setOrderData, orderSources }) => {
   };
 
   useEffect(() => {
-    const cashPay = paymentData?.find((py) => py.type === "Наличными")?.value;
-    const cardPay = paymentData?.find((py) => py.type === "Карта")?.value;
-
     setOrderData((prev) => ({
       ...prev,
-      pay_cash: toNonNegativeNumber(cashPay) || null,
-      pay_card: toNonNegativeNumber(cardPay) || null,
+      ...getBalancedPayments(
+        getPaymentAmounts(prev),
+        toNonNegativeNumber(prev?.total) +
+          (prev?.service_mode == 2 ? 0 : toNonNegativeNumber(prev?.delivery_price)),
+        getPreferredPaymentKey(prev?.payment_method)
+      ),
     }));
-  }, [paymentData]);
-
-  useEffect(() => {
-    setPaymentData([
-      {
-        type: "Наличными",
-        title: "Наличными",
-        value: Math.max(0, remainingAmount),
-      },
-      {
-        type: "Карта",
-        title: "Карта",
-        value: 0,
-      },
-    ]);
-  }, [
-    pay_bonus,
-    pay_click,
-    pay_payme,
-    pay_sertificate,
-    total,
-    delivery_price,
-    selectedOption,
-  ]);
+  }, [total, delivery_price, selectedOption]);
 
   useEffect(() => {
     const totalSum = total + (service_mode == 2 ? 0 : +delivery_price);
@@ -1355,7 +1338,13 @@ const TotalInfo = ({ orderData, setOrderData, orderSources }) => {
             </p>
           </div>
           <section className="max-h-[70vh] space-y-2 overflow-y-auto px-4 py-4">
-            {paymentData.map((pay, i) => (
+            {paymentFieldConfig
+              .filter(
+                (pay) =>
+                  pay.key !== "pay_bonus" ||
+                  (orderData?.client?.group?.loyalty_type == 1 && bonusPrice != 0)
+              )
+              .map((pay, i) => (
               <div key={i} className="rounded-md border border-border bg-background p-2">
                 <div className="mb-1 flex items-center justify-between gap-2">
                   <h1 className="textSmall2 font-medium">{pay.title}</h1>
@@ -1365,72 +1354,26 @@ const TotalInfo = ({ orderData, setOrderData, orderSources }) => {
                   type="text"
                   placeholder="0"
                   inputMode="numeric"
-                  value={toNonNegativeNumber(pay.value)}
-                  onChange={(e) => handlePaymentChange(pay.type, e.target.value)}
+                  value={toNonNegativeNumber(orderData?.[pay.key]) > 0 ? String(toNonNegativeNumber(orderData?.[pay.key])) : ""}
+                  onChange={(e) => {
+                    if (pay.key === "pay_cash") {
+                      updatePaymentAmounts("pay_cash", e.target.value);
+                    } else if (pay.key === "pay_card") {
+                      updatePaymentAmounts("pay_card", e.target.value);
+                    } else if (pay.key === "pay_payme") {
+                      handlePaymeChange(e.target.value);
+                    } else if (pay.key === "pay_click") {
+                      handleClickChange(e.target.value);
+                    } else if (pay.key === "pay_bonus") {
+                      handleBonusChange(e.target.value);
+                    } else if (pay.key === "pay_sertificate") {
+                      handleCertificateChange(e.target.value);
+                    }
+                  }}
                   className="h-9 w-full rounded-md border border-input px-3 text-base"
                 />
               </div>
             ))}
-            <div className="rounded-md border border-border bg-background p-2">
-              <div className="mb-1 flex items-center justify-between gap-2">
-                <h1 className="textSmall2 font-medium">Payme</h1>
-                <span className="textSmall1 text-thin-secondary">сум</span>
-              </div>
-              <Input
-                type="text"
-                placeholder="0"
-                inputMode="numeric"
-                value={toNonNegativeNumber(orderData?.pay_payme)}
-                onChange={(e) => handlePaymeChange(e.target.value)}
-                className="h-9 w-full rounded-md border border-input px-3 text-base"
-              />
-            </div>
-            <div className="rounded-md border border-border bg-background p-2">
-              <div className="mb-1 flex items-center justify-between gap-2">
-                <h1 className="textSmall2 font-medium">Click</h1>
-                <span className="textSmall1 text-thin-secondary">сум</span>
-              </div>
-              <Input
-                type="text"
-                placeholder="0"
-                inputMode="numeric"
-                value={toNonNegativeNumber(orderData?.pay_click)}
-                onChange={(e) => handleClickChange(e.target.value)}
-                className="h-9 w-full rounded-md border border-input px-3 text-base"
-              />
-            </div>
-
-            {orderData?.client?.group?.loyalty_type == 1 && bonusPrice != 0 && (
-              <div className="rounded-md border border-border bg-background p-2">
-                <div className="mb-1 flex items-center justify-between gap-2">
-                  <h1 className="textSmall2 font-medium">Бонус</h1>
-                  <span className="textSmall1 text-thin-secondary">сум</span>
-                </div>
-                <Input
-                  type="text"
-                  placeholder="0"
-                  inputMode="numeric"
-                  value={toNonNegativeNumber(orderData?.pay_bonus)}
-                  onChange={(e) => handleBonusChange(e.target.value)}
-                  className="h-9 w-full rounded-md border border-input px-3 text-base"
-                />
-              </div>
-            )}
-
-            <div className="rounded-md border border-border bg-background p-2">
-              <div className="mb-1 flex items-center justify-between gap-2">
-                <h1 className="textSmall2 font-medium">Сертификат</h1>
-                <span className="textSmall1 text-thin-secondary">сум</span>
-              </div>
-              <Input
-                type="text"
-                placeholder="0"
-                inputMode="numeric"
-                value={toNonNegativeNumber(orderData?.pay_sertificate)}
-                onChange={(e) => handleCertificateChange(e.target.value)}
-                className="h-9 w-full rounded-md border border-input px-3 text-base"
-              />
-            </div>
           </section>
           <div className="border-t px-4 py-3">
             <div className="mb-3 flex items-center justify-between text-sm">
