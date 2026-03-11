@@ -1338,13 +1338,7 @@ const TotalInfo = ({ orderData, setOrderData, orderSources }) => {
             </p>
           </div>
           <section className="max-h-[70vh] space-y-2 overflow-y-auto px-4 py-4">
-            {paymentFieldConfig
-              .filter(
-                (pay) =>
-                  pay.key !== "pay_bonus" ||
-                  (orderData?.client?.group?.loyalty_type == 1 && bonusPrice != 0)
-              )
-              .map((pay, i) => (
+            {paymentFieldConfig.map((pay, i) => (
               <div key={i} className="rounded-md border border-border bg-background p-2">
                 <div className="mb-1 flex items-center justify-between gap-2">
                   <h1 className="textSmall2 font-medium">{pay.title}</h1>
