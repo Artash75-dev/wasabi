@@ -50,7 +50,11 @@ export const orderCreateInfo = create((set) => ({
     stick_count: null,
     delivery_time: 60,
   },
-  setOrderData: (data) => set(() => ({ orderData: data })),
+  setOrderData: (data) =>
+    set((state) => ({
+      orderData:
+        typeof data === "function" ? data(state.orderData) : data,
+    })),
   setDiscountsNames: (data) => set(() => ({ discountsNames: data })),
 }));
 

@@ -21,6 +21,22 @@ import { PiListStarFill } from "react-icons/pi";
 import { FaWallet } from "react-icons/fa6";
 import { cn } from "@/lib/utils";
 import { isBotLikeSource } from "@/lib/orderSource";
+import { extractManualOrderComment } from "@/lib/orderComment";
+
+const appendClientComment = (baseComment = "", clientComment = "") => {
+  const trimmedBaseComment = baseComment.trim();
+  const trimmedClientComment = clientComment.trim();
+
+  if (!trimmedClientComment) {
+    return trimmedBaseComment;
+  }
+
+  if (trimmedBaseComment.includes(trimmedClientComment)) {
+    return trimmedBaseComment;
+  }
+
+  return [trimmedBaseComment, trimmedClientComment].filter(Boolean).join("\n");
+};
 
 const ClientInfo = () => {
   const {
@@ -61,13 +77,13 @@ const ClientInfo = () => {
   const handleSaveClient = () => {
     const { location, phone } = form.getValues();
     toast.success("Клиент выбран!");
-    setOrderData({
-      ...orderData,
+    setOrderData((prev) => ({
+      ...prev,
       phone: phone,
       client: clientInfoData,
-      comment: clientInfoData?.client?.comment,
+      comment: appendClientComment(prev?.comment || "", clientInfoData?.client?.comment || ""),
       location,
-    });
+    }));
   };
 
   const onSubmit = async (values) => {
@@ -312,6 +328,20 @@ const ClientInfo = () => {
     orderData?.client,
     form,
   ]);
+
+  useEffect(() => {
+    if (!clientInfoData?.client || !isBotLikeSource(orderData?.status)) {
+      return;
+    }
+
+    setOrderData((prev) => ({
+      ...prev,
+      comment: extractManualOrderComment(
+        prev?.comment || "",
+        clientInfoData?.client?.comment
+      ),
+    }));
+  }, [clientInfoData?.client?.comment, orderData?.status, setOrderData]);
 
   useEffect(() => {
     (async () => {

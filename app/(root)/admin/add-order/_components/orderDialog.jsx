@@ -18,11 +18,10 @@ import { apiKeyYandex } from "@/lib/utils";
 import toast from "react-hot-toast";
 import Loader from "@/components/shared/loader";
 import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import { useQuery } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import { io } from "socket.io-client";
-import { deliver } from "@/components/tableColumns/deliver";
-import e from "cors";
 import { useRouter } from "next/navigation";
 import { Trash2 } from "lucide-react";
 import {
@@ -43,6 +42,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { roundToTwoDecimals } from "@/lib/functions";
 import { getCreatingStatus } from "@/lib/orderSource";
+import { buildOrderComment } from "@/lib/orderComment";
 
 const socket = io();
 
@@ -79,10 +79,10 @@ export default function OrderDialog({
   const handleOpen = () => {
     const deliverP = localStorage.getItem("delivery_price");
     if (deliverP) {
-      setOrderData({
-        ...orderData,
+      setOrderData((prev) => ({
+        ...prev,
         delivery_price: deliverP,
-      });
+      }));
     }
     if (orderData.phone && orderData?.client) {
       setIsOpen(true);
@@ -146,7 +146,7 @@ export default function OrderDialog({
           serviceOption,
           pay_bonus,
           pay_sertificate,
-          promocode
+          promocode,
         } = orderData;
 
         let filterProducts = products?.map((p) => {
@@ -196,47 +196,20 @@ export default function OrderDialog({
           });
 
         const updatedProducts = [...filterProducts, ...filterProductsDiscount];
-        let orderComment = comment ? `${comment}\n\n` : "";
-        const commentAddress = clientData?.comment;
-        if ((stick_count && stick_count != 0) || (pers_num && pers_num !== 0)) {
-          orderComment = `${orderComment}Для клиента`;
-        }
-        if (stick_count && stick_count != 0) {
-          orderComment = `${orderComment}\nКоличество палочки - ${stick_count}`;
-        }
-        if (pers_num && pers_num !== 0) {
-          orderComment = `${orderComment}\nКоличество клиентов - ${pers_num}`;
-        }
-        if (commentAddress) {
-          orderComment = `${orderComment}\n${commentAddress}`;
-        }
-        if (pay_card || pay_cash || pay_sertificate || pay_bonus) {
-          orderComment = `${orderComment}\n\nТип платежа`;
-        }
-        if (pay_cash) {
-          orderComment = `${orderComment}\n${pay_cash} сум наличными`;
-        }
-        if (pay_card) {
-          orderComment = `${orderComment}\n${pay_card} сум картой`;
-        }
-        if (pay_payme) {
-          orderComment = `${orderComment}\n${pay_payme} сум PayMe`;
-        }
-        if (pay_click) {
-          orderComment = `${orderComment}\n${pay_click} сум Click`;
-        }
-        if (pay_bonus) {
-          orderComment = `${orderComment}\n${pay_bonus} сум бонус`;
-        }
-        if (pay_sertificate) {
-          orderComment = `${orderComment}\n${pay_sertificate} сум сертификат`;
-        }
-        if (serviceOption?.id) {
-          orderComment = `Тип доставки - ${serviceOption?.name}\n\n${orderComment}`;
-        }
-        if (promocode) {
-          orderComment = `Промо-код - ${promocode}\n\n${orderComment}`;
-        }
+        const orderComment = buildOrderComment({
+          manualComment: comment,
+          clientAddressComment: clientData?.comment,
+          serviceName: serviceOption?.name,
+          promocode,
+          stickCount: stick_count,
+          persNum: pers_num,
+          payCash: pay_cash,
+          payCard: pay_card,
+          payPayme: pay_payme,
+          payClick: pay_click,
+          payBonus: pay_bonus,
+          payCertificate: pay_sertificate,
+        });
         const deliverPrice =
           serviceOption?.service_mode == 2
             ? 0
@@ -275,7 +248,6 @@ export default function OrderDialog({
           pay_payme,
           pay_cash,
           pay_sertificate,
-          pay_bonus,
           client_address_id: Number(clientData?.client_address_id),
         };
         if (filterOrderData) {
@@ -291,6 +263,7 @@ export default function OrderDialog({
             toast.success("Заказ успешно отправлен!");
             setOrderData({
               spot_id: 0,
+              spot_name: "",
               phone: "",
               products: [],
               service_mode: 3,
@@ -308,6 +281,14 @@ export default function OrderDialog({
               pay_cash: null,
               pay_bonus: null,
               pay_sertificate: null,
+              pay_click: null,
+              pay_payme: null,
+              client_comment: "",
+              comment: "",
+              address: "",
+              stick_count: null,
+              pers_num: null,
+              delivery_time: 60,
             });
             localStorage.setItem("products", []);
             localStorage.setItem("discountProducts", []);
@@ -489,14 +470,14 @@ export default function OrderDialog({
         { activeWithDiscountProductsTotal }
       );
 
-      setOrderData({
-        ...orderData,
+      setOrderData((prev) => ({
+        ...prev,
         total:
           roundToTwoDecimals(noDiscountProductsTotal) +
           roundToTwoDecimals(activeNoDiscountProductsTotal) +
           roundToTwoDecimals(activeWithDiscountProductsTotal),
         discountPrice: roundToTwoDecimals(discountClientPrice),
-      });
+      }));
     };
     calculateTotals();
   }, [
@@ -526,15 +507,15 @@ export default function OrderDialog({
           </Button>
         </section>
       </DialogTrigger>
-      <DialogContent className="min-w-full h-screen w-11/12 max-h-screen bg-transparent p-0 border-0 rounded-none overflow-y-scroll no-scrollbar">
+      <DialogContent className="min-w-full h-screen w-11/12 max-h-screen bg-transparent p-0 border-0 rounded-none overflow-hidden">
         {loading ? (
           <div className="flex justify-center items-center gap-2">
             <Loader />
             <p className="text-center textNormal2 text-thin">Загрузка...</p>
           </div>
         ) : (
-          <main className="my-auto rounded-md flex justify-center overflow-hidden items-center flex-col p-4 w-11/12 min-w-11/12 max-w-[1440px] mx-auto bg-background space-y-2">
-            <DialogHeader>
+          <main className="my-auto flex h-screen w-11/12 min-w-11/12 max-w-[1440px] flex-col overflow-hidden rounded-md bg-background shadow-custom mx-auto">
+            <DialogHeader className="border-b px-4 py-4">
               <DialogTitle asChild>
                 <h1 className="textNormal1 text-thin text-center">
                   Новый заказ
@@ -542,29 +523,31 @@ export default function OrderDialog({
               </DialogTitle>
               <DialogDescription></DialogDescription>
             </DialogHeader>
-            <main className="w-full min-w-full grid grid-cols-8 gap-3">
-              <OrderCheck
-                products={products}
-                setClientData={setClientData}
-                clientData={clientData}
-                discountProducts={discountProducts}
-                discountsNames={discountsNames}
-              />
-              <OrderMap
-                branches={branches}
-                orderData={orderData}
-                clientData={clientData}
-                setOrderData={setOrderData}
-              />
-              <TotalInfo
-                totalSum={orderData?.total}
-                deliveryPrice={orderData?.delivery_price}
-                orderData={orderData}
-                setOrderData={setOrderData}
-                orderSources={orderSources}
-              />
-            </main>
-            <section className="w-full col-span-8 flex justify-center items-center gap-2">
+            <section className="flex-1 overflow-y-auto p-4 pb-28">
+              <main className="w-full min-w-full grid grid-cols-8 gap-3 items-start">
+                <OrderCheck
+                  products={products}
+                  setClientData={setClientData}
+                  clientData={clientData}
+                  discountProducts={discountProducts}
+                  discountsNames={discountsNames}
+                />
+                <OrderMap
+                  branches={branches}
+                  orderData={orderData}
+                  clientData={clientData}
+                  setOrderData={setOrderData}
+                />
+                <TotalInfo
+                  totalSum={orderData?.total}
+                  deliveryPrice={orderData?.delivery_price}
+                  orderData={orderData}
+                  setOrderData={setOrderData}
+                  orderSources={orderSources}
+                />
+              </main>
+            </section>
+            <section className="sticky bottom-0 z-10 flex w-full items-center justify-center gap-2 border-t bg-background/95 px-4 py-3 backdrop-blur supports-[backdrop-filter]:bg-background/90">
               <Button
                 disabled={isLoading}
                 onClick={handleSubmitOrder}
@@ -637,11 +620,11 @@ const OrderMap = ({ orderData, setOrderData, branches, clientData }) => {
   const [mapZoom, setMapZoom] = useState(10);
 
   const handleAddBranch = (branch) => {
-    setOrderData({
-      ...orderData,
+    setOrderData((prev) => ({
+      ...prev,
       spot_id: branch?.spot_id,
       spot_name: branch?.name,
-    });
+    }));
   };
 
   useEffect(() => {
@@ -690,10 +673,10 @@ const OrderMap = ({ orderData, setOrderData, branches, clientData }) => {
                     <Placemark
                       key={idx}
                       onClick={() => {
-                        setOrderData({
-                          ...orderData,
+                        setOrderData((prev) => ({
+                          ...prev,
                           spot_id: branch?.spot_id,
-                        });
+                        }));
                       }}
                       geometry={[+branch?.lat, +branch?.lng]}
                       options={{
@@ -772,10 +755,10 @@ const OrderCheck = ({
     localStorage.setItem("delivery_price", value);
 
     if (/^\d*$/.test(value)) {
-      setOrderData({
-        ...orderData,
+      setOrderData((prev) => ({
+        ...prev,
         delivery_price: +value,
-      });
+      }));
     }
   };
 
@@ -788,14 +771,14 @@ const OrderCheck = ({
   };
   const handleAddComment = (e) => {
     const { value } = e.target;
-    setOrderData({
-      ...orderData,
+    setOrderData((prev) => ({
+      ...prev,
       comment: value,
-    });
+    }));
   };
   const deliverPrice = localStorage.getItem("delivery_price");
   return (
-    <main className="col-span-3 shadow-custom p-4 rounded-md flex justify-between items-start flex-col">
+    <main className="col-span-3 shadow-custom p-4 rounded-md flex justify-between items-start flex-col min-h-[720px]">
       <table className="w-full">
         <thead>
           <tr>
@@ -926,17 +909,16 @@ const OrderCheck = ({
           </tr>
         </tbody>
       </table>
-      <ul className="w-full textSmall2 h-[60%] space-y-2 mt-2 text-thin">
-        <li className="border-border pt-2 border-t-2 flex justify-between items-center gap-3">
-          <h1 className="col-span-1">Комментарий:</h1>
+      <ul className="w-full textSmall2 h-[60%] space-y-3 mt-2 text-thin">
+        <li className="border-border pt-2 border-t-2 flex flex-col items-start gap-3">
+          <h1 className="col-span-1 font-medium">Комментарий:</h1>
           <div className="w-full flex flex-col gap-2 justify-start items-center">
-            <Input
+            <Textarea
               onChange={handleAddComment}
-              type="text"
-              value={orderData?.comment}
-              placeholder=""
-              className="col-span-1 text-end p-0"
-            />{" "}
+              value={orderData?.comment || ""}
+              placeholder="Введите комментарий для заказа"
+              className="min-h-[120px] resize-y text-sm leading-6"
+            />
           </div>
         </li>
         <li className="border-border pt-2 flex justify-between items-center gap-3">
@@ -1007,6 +989,18 @@ const OrderCheck = ({
 };
 
 const TotalInfo = ({ orderData, setOrderData, orderSources }) => {
+  const sanitizeNumericInput = (value) => String(value ?? "").replace(/[^\d]/g, "");
+  const toNonNegativeNumber = (value) => Math.max(0, Number(value) || 0);
+  const getSanitizedAmount = (value, max) => {
+    const digitsOnly = sanitizeNumericInput(value);
+
+    if (!digitsOnly) {
+      return 0;
+    }
+
+    return Math.min(Math.max(0, Number(digitsOnly)), Math.max(0, max));
+  };
+
   const bonusPrice = +orderData?.client?.client?.bonus / 100 || 0;
   const {
     pay_bonus,
@@ -1019,146 +1013,108 @@ const TotalInfo = ({ orderData, setOrderData, orderSources }) => {
     delivery_price,
     service_mode,
   } = orderData;
+  const [isPaymentDialogOpen, setIsPaymentDialogOpen] = useState(false);
   const [paymentData, setPaymentData] = useState([
     { type: "Наличными", title: "Наличными", value: null },
     { type: "Карта", title: "Карта", value: null },
   ]);
 
   const [selectedOption, setSelectedOption] = useState("");
+  const totalSum =
+    toNonNegativeNumber(orderData?.total) +
+    (orderData?.service_mode == 2 ? 0 : toNonNegativeNumber(orderData?.delivery_price));
+  const remainingAmount = Math.max(
+    0,
+    totalSum -
+      toNonNegativeNumber(pay_bonus) -
+      toNonNegativeNumber(pay_sertificate) -
+      toNonNegativeNumber(pay_payme) -
+      toNonNegativeNumber(pay_click)
+  );
+  const allocatedAmount = Math.max(0, totalSum - remainingAmount);
 
   const handleBonusChange = (value) => {
-    if (isNaN(value)) return;
-
-    const totalSum =
-      orderData?.total +
-      (orderData?.service_mode == 2 ? 0 : +orderData?.delivery_price);
-
-    // Qiymatni tozalash va maksimal bonusni cheklash
-    const sanitizedBonus = Math.min(
-      Math.max(0, +value.replace(/^0+(?!$)/, "")), // Faqat musbat sonlarni qabul qilish
-      Math.min(bonusPrice, totalSum) // `bonusPrice` va `totalSum` ni cheklash
+    const sanitizedBonus = getSanitizedAmount(
+      value,
+      Math.min(bonusPrice, totalSum)
     );
 
-    // Bonus qiymati jami qiymatga teng bo'lsa, sertifikat nolga teng bo'lsin
     if (sanitizedBonus == totalSum) {
-      setOrderData({
-        ...orderData,
+      setOrderData((prev) => ({
+        ...prev,
         pay_bonus: sanitizedBonus,
         pay_sertificate: 0,
         pay_click: 0,
         pay_payme: 0,
-      });
+      }));
     } else {
-      setOrderData({
-        ...orderData,
+      setOrderData((prev) => ({
+        ...prev,
         pay_bonus: sanitizedBonus,
-      });
+      }));
     }
   };
 
   const handleCertificateChange = (value) => {
-    if (isNaN(value)) return;
-
-    const totalSum =
-      orderData?.total +
-      (orderData?.service_mode == 2 ? 0 : +orderData?.delivery_price);
-
-    const sanitizedCertificate = Math.min(
-      Math.max(0, +value.replace(/^0+(?!$)/, "")),
-      orderData?.total +
-      (orderData?.service_mode == 2 ? 0 : +orderData?.delivery_price)
-    );
+    const sanitizedCertificate = getSanitizedAmount(value, totalSum);
 
     if (sanitizedCertificate == totalSum) {
-      setOrderData({
-        ...orderData,
+      setOrderData((prev) => ({
+        ...prev,
         pay_sertificate: sanitizedCertificate,
         pay_bonus: 0,
         pay_click: 0,
         pay_payme: 0,
-      });
+      }));
     } else {
-      setOrderData({
-        ...orderData,
+      setOrderData((prev) => ({
+        ...prev,
         pay_sertificate: sanitizedCertificate,
-      });
+      }));
     }
   };
 
   const handlePaymeChange = (value) => {
-    if (isNaN(value)) return;
-
-    const totalSum =
-      orderData?.total +
-      (orderData?.service_mode == 2 ? 0 : +orderData?.delivery_price);
-
-    const sanitizedCertificate = Math.min(
-      Math.max(0, +value.replace(/^0+(?!$)/, "")),
-      orderData?.total +
-      (orderData?.service_mode == 2 ? 0 : +orderData?.delivery_price)
-    );
+    const sanitizedCertificate = getSanitizedAmount(value, totalSum);
 
     if (sanitizedCertificate == totalSum) {
-      setOrderData({
-        ...orderData,
+      setOrderData((prev) => ({
+        ...prev,
         pay_payme: sanitizedCertificate,
         pay_bonus: 0,
         pay_sertificate: 0,
         pay_click: 0,
-      });
+      }));
     } else {
-      setOrderData({
-        ...orderData,
+      setOrderData((prev) => ({
+        ...prev,
         pay_payme: sanitizedCertificate,
-      });
+      }));
     }
   };
 
   const handleClickChange = (value) => {
-    if (isNaN(value)) return;
-
-    const totalSum =
-      orderData?.total +
-      (orderData?.service_mode == 2 ? 0 : +orderData?.delivery_price);
-
-    const sanitizedCertificate = Math.min(
-      Math.max(0, +value.replace(/^0+(?!$)/, "")),
-      orderData?.total +
-      (orderData?.service_mode == 2 ? 0 : +orderData?.delivery_price)
-    );
+    const sanitizedCertificate = getSanitizedAmount(value, totalSum);
 
     if (sanitizedCertificate == totalSum) {
-      setOrderData({
-        ...orderData,
+      setOrderData((prev) => ({
+        ...prev,
         pay_payme: 0,
         pay_bonus: 0,
         pay_sertificate: 0,
         pay_click: sanitizedCertificate,
-      });
+      }));
     } else {
-      setOrderData({
-        ...orderData,
+      setOrderData((prev) => ({
+        ...prev,
         pay_click: sanitizedCertificate,
-      });
+      }));
     }
   };
 
   // Handle cash and card payments
   const handlePaymentChange = (type, value) => {
-    if (isNaN(value)) return;
-
-    const remainingAmount =
-      orderData?.total +
-      (orderData?.service_mode == 2 ? 0 : +delivery_price) -
-      (+pay_bonus || 0) -
-      (+pay_sertificate || 0) -
-      (+pay_payme || 0) -
-      (+pay_click || 0);
-
-    const sanitizedValue = Math.min(
-      Math.max(0, +value.replace(/^0+(?!$)/, "")),
-      remainingAmount
-    );
+    const sanitizedValue = getSanitizedAmount(value, remainingAmount);
 
     const updatedPayments = paymentData.map((pay) =>
       pay.type === type
@@ -1173,11 +1129,11 @@ const TotalInfo = ({ orderData, setOrderData, orderSources }) => {
   };
 
   const handleOptionSelect = (option) => {
-    setOrderData({
-      ...orderData,
+    setOrderData((prev) => ({
+      ...prev,
       serviceOption: option,
       service_mode: option?.service_mode,
-    });
+    }));
     setSelectedOption(option);
   };
 
@@ -1185,27 +1141,19 @@ const TotalInfo = ({ orderData, setOrderData, orderSources }) => {
     const cashPay = paymentData?.find((py) => py.type === "Наличными")?.value;
     const cardPay = paymentData?.find((py) => py.type === "Карта")?.value;
 
-    setOrderData({
-      ...orderData,
-      pay_cash: cashPay || null,
-      pay_card: cardPay || null,
-    });
+    setOrderData((prev) => ({
+      ...prev,
+      pay_cash: toNonNegativeNumber(cashPay) || null,
+      pay_card: toNonNegativeNumber(cardPay) || null,
+    }));
   }, [paymentData]);
 
   useEffect(() => {
-    const remainingAmount =
-      orderData?.total +
-      (orderData?.service_mode == 2 ? 0 : +delivery_price) -
-      (+pay_bonus || 0) -
-      (+pay_sertificate || 0) -
-      (+pay_payme || 0) -
-      (+pay_click || 0);
-
     setPaymentData([
       {
         type: "Наличными",
         title: "Наличными",
-        value: remainingAmount,
+        value: Math.max(0, remainingAmount),
       },
       {
         type: "Карта",
@@ -1230,20 +1178,20 @@ const TotalInfo = ({ orderData, setOrderData, orderSources }) => {
       pay_click == totalSum ||
       pay_payme == totalSum
     ) {
-      setOrderData({
-        ...orderData,
+      setOrderData((prev) => ({
+        ...prev,
         payment_method: "Карта",
-      });
+      }));
     } else if (pay_cash == totalSum) {
-      setOrderData({
-        ...orderData,
+      setOrderData((prev) => ({
+        ...prev,
         payment_method: "Наличными",
-      });
+      }));
     } else {
-      setOrderData({
-        ...orderData,
+      setOrderData((prev) => ({
+        ...prev,
         payment_method: "Наличными",
-      });
+      }));
     }
   }, [
     total,
@@ -1260,72 +1208,65 @@ const TotalInfo = ({ orderData, setOrderData, orderSources }) => {
   const additionalOptions = orderSources?.filter((option) => option.type === 1);
 
   return (
-    <main className="col-span-2 flex flex-col justify-around gap-1 shadow-custom px-4">
-      <section className="w-full space-y-2 h-[200px] overflow-y-scroll px-2">
-        {paymentData.map((pay, i) => (
-          <div key={i} className="p-2 rounded-md border border-border w-full">
-            <h1 className="textSmall2 mb-2">{pay.title}</h1>
-            <Input
-              type="text"
-              placeholder="0"
-              value={pay.value || ""}
-              onChange={(e) => handlePaymentChange(pay.type, e.target.value)}
-              className="w-full p-2 border rounded"
-            />
+    <main className="col-span-2 self-start rounded-md shadow-custom bg-background">
+      <section className="space-y-2 px-3 py-3">
+        <div className="rounded-md border border-border p-3 space-y-2">
+          <div className="flex items-center justify-between gap-2">
+            <h1 className="textSmall2 text-thin-secondary">К оплате</h1>
+            <p className="text-sm font-medium">{totalSum} сум</p>
           </div>
-        ))}
-        <div className="p-2 rounded-md border border-border w-full">
-          <h1 className="textSmall2 mb-2">Payme</h1>
-          <Input
-            type="text"
-            placeholder="0"
-            value={orderData?.pay_payme || ""}
-            onChange={(e) => handlePaymeChange(e.target.value)}
-            className="w-full p-2 border rounded"
-          />
-        </div>
-        <div className="p-2 rounded-md border border-border w-full">
-          <h1 className="textSmall2 mb-2">Click</h1>
-          <Input
-            type="text"
-            placeholder="0"
-            value={orderData?.pay_click || ""}
-            onChange={(e) => handleClickChange(e.target.value)}
-            className="w-full p-2 border rounded"
-          />
-        </div>
-
-        {orderData?.client?.group?.loyalty_type == 1 && bonusPrice != 0 && (
-          <div className="p-2 rounded-md border border-border w-full">
-            <h1 className="textSmall2 mb-2">Бонус</h1>
-            <Input
-              type="text"
-              placeholder="0"
-              value={orderData?.pay_bonus || ""}
-              onChange={(e) => handleBonusChange(e.target.value)}
-              className="w-full p-2 border rounded"
-            />
+          <div className="flex items-center justify-between gap-2">
+            <h1 className="textSmall2 text-thin-secondary">Распределено</h1>
+            <p className="text-sm font-medium">{allocatedAmount} сум</p>
           </div>
-        )}
-
-        <div className="p-2 rounded-md border border-border w-full">
-          <h1 className="textSmall2 mb-2">Сертификат</h1>
-          <Input
-            type="text"
-            placeholder="0"
-            value={orderData?.pay_sertificate || ""}
-            onChange={(e) => handleCertificateChange(e.target.value)}
-            className="w-full p-2 border rounded"
-          />
+          <div className="flex items-center justify-between gap-2">
+            <h1 className="textSmall2 text-thin-secondary">Остаток</h1>
+            <p className="text-sm font-semibold">{remainingAmount} сум</p>
+          </div>
+          <div className="grid grid-cols-2 gap-2 pt-1">
+            <div className="rounded-md border border-input px-3 py-2">
+              <p className="textSmall1 text-thin-secondary">Наличными</p>
+              <p className="text-sm font-medium">{toNonNegativeNumber(pay_cash)} сум</p>
+            </div>
+            <div className="rounded-md border border-input px-3 py-2">
+              <p className="textSmall1 text-thin-secondary">Карта</p>
+              <p className="text-sm font-medium">{toNonNegativeNumber(pay_card)} сум</p>
+            </div>
+            <div className="rounded-md border border-input px-3 py-2">
+              <p className="textSmall1 text-thin-secondary">Payme</p>
+              <p className="text-sm font-medium">{toNonNegativeNumber(pay_payme)} сум</p>
+            </div>
+            <div className="rounded-md border border-input px-3 py-2">
+              <p className="textSmall1 text-thin-secondary">Click</p>
+              <p className="text-sm font-medium">{toNonNegativeNumber(pay_click)} сум</p>
+            </div>
+            <div className="rounded-md border border-input px-3 py-2">
+              <p className="textSmall1 text-thin-secondary">Бонус</p>
+              <p className="text-sm font-medium">{toNonNegativeNumber(pay_bonus)} сум</p>
+            </div>
+            <div className="rounded-md border border-input px-3 py-2">
+              <p className="textSmall1 text-thin-secondary">Сертификат</p>
+              <p className="text-sm font-medium">{toNonNegativeNumber(pay_sertificate)} сум</p>
+            </div>
+          </div>
+          <Button
+            type="button"
+            className="w-full bg-primary hover:bg-primary"
+            onClick={() => setIsPaymentDialogOpen(true)}
+          >
+            Настроить оплату
+          </Button>
         </div>
       </section>
 
-      <section className="w-full space-y-3">
-        <div className="space-y-1 border-b-[1px] py-1">
+      <section className="w-full space-y-2 px-3 pb-3">
+        <div className="space-y-1 rounded-md border border-border p-2">
           <h1 className="textSmall2 text-thin-secondary">Режим обслуживания</h1>
           <DropdownMenu>
-            <DropdownMenuTrigger>
-              Вы выбрали: {orderData?.serviceOption?.name || "Выберите опцию"}
+            <DropdownMenuTrigger className="w-full rounded-md border border-input px-3 py-2 text-left text-sm">
+              {orderData?.serviceOption?.name
+                ? `Вы выбрали: ${orderData?.serviceOption?.name}`
+                : "Выберите опцию"}
             </DropdownMenuTrigger>
             <DropdownMenuContent>
               <DropdownMenuItem
@@ -1364,39 +1305,148 @@ const TotalInfo = ({ orderData, setOrderData, orderSources }) => {
             </DropdownMenuContent>
           </DropdownMenu>
         </div>
-        <div className="space-y-1 py-1">
+        <div className="space-y-1 rounded-md border border-border p-2">
           <h1 className="textSmall2 text-thin-secondary">Количество палочки</h1>
           <Input
             placeholder="0"
+            inputMode="numeric"
             onChange={(e) =>
-              setOrderData({
-                ...orderData,
-                stick_count: e.target.value,
-              })
+              setOrderData((prev) => ({
+                ...prev,
+                stick_count: sanitizeNumericInput(e.target.value),
+              }))
             }
-            className="p-0"
+            className="h-9 rounded-md border border-input px-3 text-base"
             value={orderData?.stick_count || ""}
           />
         </div>
-        <div className="space-y-1 py-1">
+        <div className="space-y-1 rounded-md border border-border p-2">
           <h1 className="textSmall2 text-thin-secondary">Количество клиенты</h1>
           <Input
             placeholder="0"
+            inputMode="numeric"
             onChange={(e) =>
-              setOrderData({
-                ...orderData,
-                pers_num: e.target.value,
-              })
+              setOrderData((prev) => ({
+                ...prev,
+                pers_num: sanitizeNumericInput(e.target.value),
+              }))
             }
-            className="p-0"
+            className="h-9 rounded-md border border-input px-3 text-base"
             value={orderData?.pers_num || ""}
           />
         </div>
-        <div className="space-y-1 border-b-[1px] py-1">
+        <div className="space-y-1 rounded-md border border-border p-2">
           <h1 className="textSmall2 text-thin-secondary">Способ оплаты</h1>
-          <p className="textNormal1">{orderData?.payment_method}</p>
-        </div>{" "}
+          <div className="flex items-center justify-between gap-2">
+            <p className="text-sm font-medium">{orderData?.payment_method}</p>
+            <p className="textSmall1 text-thin-secondary">
+              Остаток: {Math.max(0, remainingAmount)} сум
+            </p>
+          </div>
+        </div>
       </section>
+
+      <Dialog open={isPaymentDialogOpen} onOpenChange={setIsPaymentDialogOpen}>
+        <DialogContent className="w-[92vw] max-w-md rounded-md p-0">
+          <div className="border-b px-4 py-3">
+            <h1 className="text-base font-semibold">Настройка оплаты</h1>
+            <p className="textSmall1 text-thin-secondary">
+              Укажите суммы оплаты. Допускаются только значения от 0 и выше.
+            </p>
+          </div>
+          <section className="max-h-[70vh] space-y-2 overflow-y-auto px-4 py-4">
+            {paymentData.map((pay, i) => (
+              <div key={i} className="rounded-md border border-border bg-background p-2">
+                <div className="mb-1 flex items-center justify-between gap-2">
+                  <h1 className="textSmall2 font-medium">{pay.title}</h1>
+                  <span className="textSmall1 text-thin-secondary">сум</span>
+                </div>
+                <Input
+                  type="text"
+                  placeholder="0"
+                  inputMode="numeric"
+                  value={toNonNegativeNumber(pay.value)}
+                  onChange={(e) => handlePaymentChange(pay.type, e.target.value)}
+                  className="h-9 w-full rounded-md border border-input px-3 text-base"
+                />
+              </div>
+            ))}
+            <div className="rounded-md border border-border bg-background p-2">
+              <div className="mb-1 flex items-center justify-between gap-2">
+                <h1 className="textSmall2 font-medium">Payme</h1>
+                <span className="textSmall1 text-thin-secondary">сум</span>
+              </div>
+              <Input
+                type="text"
+                placeholder="0"
+                inputMode="numeric"
+                value={toNonNegativeNumber(orderData?.pay_payme)}
+                onChange={(e) => handlePaymeChange(e.target.value)}
+                className="h-9 w-full rounded-md border border-input px-3 text-base"
+              />
+            </div>
+            <div className="rounded-md border border-border bg-background p-2">
+              <div className="mb-1 flex items-center justify-between gap-2">
+                <h1 className="textSmall2 font-medium">Click</h1>
+                <span className="textSmall1 text-thin-secondary">сум</span>
+              </div>
+              <Input
+                type="text"
+                placeholder="0"
+                inputMode="numeric"
+                value={toNonNegativeNumber(orderData?.pay_click)}
+                onChange={(e) => handleClickChange(e.target.value)}
+                className="h-9 w-full rounded-md border border-input px-3 text-base"
+              />
+            </div>
+
+            {orderData?.client?.group?.loyalty_type == 1 && bonusPrice != 0 && (
+              <div className="rounded-md border border-border bg-background p-2">
+                <div className="mb-1 flex items-center justify-between gap-2">
+                  <h1 className="textSmall2 font-medium">Бонус</h1>
+                  <span className="textSmall1 text-thin-secondary">сум</span>
+                </div>
+                <Input
+                  type="text"
+                  placeholder="0"
+                  inputMode="numeric"
+                  value={toNonNegativeNumber(orderData?.pay_bonus)}
+                  onChange={(e) => handleBonusChange(e.target.value)}
+                  className="h-9 w-full rounded-md border border-input px-3 text-base"
+                />
+              </div>
+            )}
+
+            <div className="rounded-md border border-border bg-background p-2">
+              <div className="mb-1 flex items-center justify-between gap-2">
+                <h1 className="textSmall2 font-medium">Сертификат</h1>
+                <span className="textSmall1 text-thin-secondary">сум</span>
+              </div>
+              <Input
+                type="text"
+                placeholder="0"
+                inputMode="numeric"
+                value={toNonNegativeNumber(orderData?.pay_sertificate)}
+                onChange={(e) => handleCertificateChange(e.target.value)}
+                className="h-9 w-full rounded-md border border-input px-3 text-base"
+              />
+            </div>
+          </section>
+          <div className="border-t px-4 py-3">
+            <div className="mb-3 flex items-center justify-between text-sm">
+              <span className="text-thin-secondary">Остаток</span>
+              <span className="font-semibold">{remainingAmount} сум</span>
+            </div>
+            <Button
+              type="button"
+              className="w-full bg-primary hover:bg-primary"
+              onClick={() => setIsPaymentDialogOpen(false)}
+            >
+              Готово
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </main>
   );
 };

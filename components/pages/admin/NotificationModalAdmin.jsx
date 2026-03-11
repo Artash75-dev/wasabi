@@ -24,8 +24,10 @@ import {
   getSourceTitle,
   isBotLikeSource,
 } from "@/lib/orderSource";
+import { extractManualOrderComment } from "@/lib/orderComment";
 
 export default function NotificationModalAdmin({ products }) {
+  const toNonNegativeNumber = (value) => Math.max(0, Number(value) || 0);
   const botOrders = useQuery(api.order.getByStatus, { status: "bot" });
   const websiteOrders = useQuery(api.order.getByStatus, { status: "website" });
   const mobileOrders = useQuery(api.order.getByStatus, { status: "mobile" });
@@ -121,20 +123,17 @@ export default function NotificationModalAdmin({ products }) {
         // } else {
         //   setProductsData([]);
         // }
-        let orderComment = order?.comment;
-
-        if (clientData?.client?.comment) {
-          orderComment = orderComment + " " + clientData?.client?.comment;
-        }
-        if (order?.bonus) {
-          orderComment = `Бонус: ${order?.bonus} сум ,${orderComment}`;
-        }
-        if (order?.payment_method == "Наличными") {
-          orderComment = `Оплата наличными, ${orderComment}`;
-        }
-        if (order?.payment_method == "Карта") {
-          orderComment = `Оплата картой, ${orderComment}`;
-        }
+        const orderComment = extractManualOrderComment(
+          order?.comment,
+          clientData?.client?.comment
+        );
+        const orderTotal = toNonNegativeNumber(order?.total);
+        const payCash = toNonNegativeNumber(order?.pay_cash);
+        const payCard = toNonNegativeNumber(order?.pay_card);
+        const payClick = toNonNegativeNumber(order?.pay_click);
+        const payPayme = toNonNegativeNumber(order?.pay_payme);
+        const payBonus = toNonNegativeNumber(order?.pay_bonus);
+        const payCertificate = toNonNegativeNumber(order?.pay_sertificate);
         setSearchClientValue(`${order?.phone}`);
         setClientInfoData(clientData);
         setOrderData({
@@ -146,28 +145,35 @@ export default function NotificationModalAdmin({ products }) {
           phone: order?.phone,
           service_mode: order?.service_mode,
           payment_method: order?.payment_method,
-          total: order?.total,
+          total: orderTotal,
           chat_id: order?.chat_id,
           location: order?.location,
           status: order?.status,
           serviceOption:
             order?.service_mode == 2
               ? {
-                name: "Навынос",
-                service_mode: 2,
-              }
+                  name: "Навынос",
+                  service_mode: 2,
+                }
               : {
-                name: "Доставка",
-                service_mode: 3,
-              },
+                  name: "Доставка",
+                  service_mode: 3,
+                },
           client: clientData,
-          delivery_price: 0,
+          delivery_price: order?.delivery_price || 0,
           pers_num: order?.pers_num,
           comment: orderComment,
           address: order?.address,
           promocode: order?.promocode,
-          pay_cash: order?.payment_method == "Наличными" ? order?.total : 0,
-          pay_card: order?.payment_method == "Карта" ? order?.total : 0,
+          pay_cash:
+            payCash > 0 ? payCash : order?.payment_method == "Наличными" ? orderTotal : 0,
+          pay_card:
+            payCard > 0 ? payCard : order?.payment_method == "Карта" ? orderTotal : 0,
+          pay_click: payClick,
+          pay_payme: payPayme,
+          pay_bonus: payBonus,
+          pay_sertificate: payCertificate,
+          stick_count: order?.stick_count ?? null,
         });
 
         // const filterDiscount = filterProducts?.filter((pr) => pr.promotion_id);
@@ -214,10 +220,15 @@ export default function NotificationModalAdmin({ products }) {
       discountPrice: 0,
       pay_cash: null,
       pay_card: null,
+      pay_click: null,
+      pay_payme: null,
+      pay_bonus: null,
+      pay_sertificate: null,
       client_comment: "",
       comment: "",
       address: "",
       stick_count: null,
+      pers_num: null,
       delivery_time: 60,
     });
     localStorage.setItem("products", []);

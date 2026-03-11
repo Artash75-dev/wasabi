@@ -7,7 +7,7 @@ import dotenv from "dotenv";
 dotenv.config();
 const dev = process.env.NODE_ENV !== "production";
 const hostname = "localhost";
-const port = 9000;
+const port = dev ? 1010 : 9000;
 const app = next({ dev, hostname, port });
 const handler = app.getRequestHandler();
 const courierLocations = {};
@@ -74,6 +74,7 @@ app.prepare().then(() => {
     cors: {
       origin: [
         "*",
+        "http://localhost:1010",
         "http://localhost:9000",
         "https://joinposter.com",
         "https://platform.joinposter.com",
