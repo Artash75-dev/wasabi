@@ -1,11 +1,101 @@
 import { api } from "@/convex/_generated/api";
-import { ApiService } from "@/lib/api.services";
 import {
   isBotLikeCreatingSource,
   isBotLikeSource,
 } from "@/lib/orderSource";
 import { postApi } from "@/lib/requestApi";
 import { fetchMutation, fetchQuery } from "convex/nextjs";
+
+const getProductAggregateKey = (product) =>
+  [
+    +product?.product_id || 0,
+    product?.promotion_id ? `promo:${+product.promotion_id}` : "promo:none",
+    product?.isBonusProduct ? "bonus:1" : "bonus:0",
+    product?.fixedPrice != null ? `fixed:${product.fixedPrice}` : "fixed:none",
+    product?.conditionProductId
+      ? `cond:${+product.conditionProductId}`
+      : "cond:none",
+  ].join("|");
+
+const buildPosterInvolvedProducts = (product) => {
+  if (Array.isArray(product?.promotionTrigger) && product.promotionTrigger.length > 0) {
+    return product.promotionTrigger
+      .filter((trigger) => +trigger?.id > 0 && +trigger?.count > 0)
+      .map((trigger) => ({
+        id: +trigger.id,
+        count: +trigger.count,
+      }));
+  }
+
+  if (+product?.conditionProductId > 0) {
+    return [
+      {
+        id: +product.conditionProductId,
+        count: +product?.countDisc > 0 ? +product.countDisc : 1,
+      },
+    ];
+  }
+
+  return [
+    {
+      id: +product.product_id,
+      count: +product?.countDisc > 0 ? +product.countDisc : 1,
+    },
+  ];
+};
+
+const buildPosterPromotionData = (products = []) => {
+  const activePromotionProducts = products.filter((product) => product?.promotion_id);
+  const promotionData = [];
+
+  activePromotionProducts.forEach((product) => {
+    const resultType = +(product?.result_type ?? product?.discount?.params?.result_type ?? 0);
+    const promoId = +product.promotion_id;
+    const promotionCount = Math.max(
+      1,
+      +(product?.resultProductCount || product?.count || 1)
+    );
+
+    if (!promoId) {
+      return;
+    }
+
+    if (resultType === 1 || product?.isBonusProduct) {
+      const involvedProducts = buildPosterInvolvedProducts(product);
+      if (involvedProducts.length === 0) {
+        return;
+      }
+
+      for (let index = 0; index < promotionCount; index += 1) {
+        promotionData.push({
+          id: promoId,
+          involved_products: involvedProducts,
+          result_products: [
+            {
+              id: +(product?.resultProductId || product?.product_id),
+              count: 1,
+            },
+          ],
+        });
+      }
+      return;
+    }
+
+    for (let index = 0; index < Math.max(1, +product?.count || 1); index += 1) {
+      promotionData.push({
+        id: promoId,
+        involved_products: [
+          {
+            id: +product.product_id,
+            count: 1,
+          },
+        ],
+      });
+    }
+  });
+
+  return promotionData;
+};
 
 // let OpenStreetMapProvider;
 // if (typeof window !== "undefined") {
@@ -41,9 +131,6 @@ export async function GET(request) {
 
 export async function POST(request) {
   try {
-    const { response: discount } = await ApiService.getData(
-      "clients.getPromotions"
-    );
     const args = await request.json();
 
     const {
@@ -93,6 +180,15 @@ export async function POST(request) {
         photo,
         price,
         promotion_id,
+        result_type,
+        isBonusProduct,
+        conditionType,
+        conditionProductId,
+        fixedPrice,
+        resultProductId,
+        resultProductCount,
+        bonusDiscountPercent,
+        promotionTrigger,
       } = item;
 
       return {
@@ -105,12 +201,21 @@ export async function POST(request) {
         photo,
         price,
         promotion_id,
+        result_type,
+        isBonusProduct,
+        conditionType,
+        conditionProductId,
+        fixedPrice,
+        resultProductId,
+        resultProductCount,
+        bonusDiscountPercent,
+        promotionTrigger,
       };
     });
 
     productsData = productsData?.reduce((acc, curr) => {
       const existingProduct = acc.find(
-        (product) => +product?.product_id == +curr?.product_id
+        (product) => getProductAggregateKey(product) === getProductAggregateKey(curr)
       );
 
       if (existingProduct) {
@@ -122,7 +227,8 @@ export async function POST(request) {
       return acc;
     }, []);
 
-    let filterProducts = productsData.map((p) => {
+    // Bonus mahsulotlarni Poster uchun products ro'yxatidan chiqarish (Poster o'zi qo'shadi)
+    let filterProducts = productsData.filter((p) => !p?.isBonusProduct).map((p) => {
       if (!p?.modifications?.length > 0 && !serviceOption?.id) {
         return {
           product_id: p.product_id,
@@ -136,7 +242,7 @@ export async function POST(request) {
         };
       }
     });
-    productsData.forEach((product) => {
+    productsData.filter((p) => !p?.isBonusProduct).forEach((product) => {
       if (product?.modifications?.length > 0) {
         const findModif = product?.modifications?.map((md) => {
           return {
@@ -150,38 +256,7 @@ export async function POST(request) {
       }
     });
 
-    const discountProducts = products?.filter((p) => p?.promotion_id);
-    let promotion = discount?.reduce((acc, d) => {
-      // Find all products related to the current promotion
-      const findDiscount = discountProducts?.filter(
-        (pr) => +pr?.promotion_id === +d?.promotion_id
-      );
-
-      if (findDiscount?.length) {
-        acc.push({
-          id: +d?.promotion_id,
-          involved_products: findDiscount.map((prd) => ({
-            id: +prd?.product_id,
-            count: +prd?.count,
-          })),
-        });
-      }
-
-      return acc;
-    }, []);
-
-    const promotionData = discountProducts?.flatMap((prd) => {
-      // Har bir product uchun count miqdoricha takrorlash
-      return Array.from({ length: prd.count }, () => ({
-        id: prd.promotion_id,
-        involved_products: [
-          {
-            id: prd?.product_id,
-            count: 1, // Har bir yangi elementda count 1 bo'ladi
-          },
-        ],
-      }));
-    });
+    const promotionData = buildPosterPromotionData(productsData);
 
     let response;
     let addressData = "";
@@ -270,9 +345,19 @@ export async function POST(request) {
         },
       };
     }
-    console.log({ posterPayload });
-    console.log(JSON.stringify(posterPayload));
-    console.log("Promotion Data:", JSON.stringify(promotionData));
+    console.log("Original products from request:", JSON.stringify(products?.length));
+    console.log(
+      "Poster promotion debug:",
+      JSON.stringify({
+        qualifyingProducts: productsData.filter(
+          (product) => product?.promotion_id && !product?.isBonusProduct
+        ),
+        resultProducts: productsData.filter((product) => product?.isBonusProduct),
+        filteredProducts: filterProducts,
+        promotionData,
+      })
+    );
+    console.log("posterPayload:", JSON.stringify(posterPayload));
     if (isBotLikeSource(status)) {
       response = await fetchMutation(api.order.put, payload);
     } else if (isBotLikeCreatingSource(status)) {

@@ -1,5 +1,58 @@
 import { create } from "zustand";
 
+const buildPromotionTriggerSnapshot = (products = []) =>
+  [...products]
+    .filter((product) => !product?.isBonusProduct && +product?.count > 0)
+    .sort((a, b) => +a.product_id - +b.product_id)
+    .map((product) => ({
+      id: +product.product_id,
+      count: +product.count,
+    }));
+
+const buildBonusDiscountProduct = ({
+  bonusProductData,
+  discount,
+  isAutoApply,
+  countDisc,
+  conditionType,
+  conditionProductId = null,
+  resultProductCount,
+  bonusDiscountPercent,
+  promotionTrigger,
+}) => ({
+  ...bonusProductData,
+  count: resultProductCount,
+  countDisc,
+  discount: { ...discount, active: isAutoApply },
+  isBonusProduct: true,
+  resultType: 1,
+  conditionType,
+  conditionProductId,
+  resultProductId: +bonusProductData.product_id,
+  resultProductCount,
+  bonusDiscountPercent,
+  promotionTrigger,
+});
+
+const buildFixedPriceDiscountProduct = ({
+  product,
+  discount,
+  isAutoApply,
+  countDisc,
+  fixedPrice,
+  productCount,
+  conditionType,
+}) => ({
+  ...product,
+  count: isAutoApply ? productCount : 0,
+  countDisc,
+  discount: { ...discount, active: isAutoApply },
+  resultType: 4,
+  conditionType,
+  fixedPrice,
+  productCount,
+});
+
 export const useEvent = create((set) => ({
   activeTab: 1,
   timeRange: "1d",
@@ -89,12 +142,12 @@ const useProductStore = create((set) => ({
         products: data,
       };
     }),
-  setProducts: (data, product, noDiscountProducts, noDisccountCategories) =>
+  setProducts: (data, product, noDiscountProducts, noDisccountCategories, allProductsData) =>
     set((state) => {
       state.initializeProducts();
       state.initializeDiscountProducts();
       let updatedProducts,
-        updatedDiscountProducts = state.discountProducts;
+        updatedDiscountProducts = [...state.discountProducts];
       //modificator count
       if (product?.product_id) {
         // Find the product by ID in the state
@@ -172,6 +225,126 @@ const useProductStore = create((set) => ({
                   filterProductsCategory = activeDiscountProducts.filter(
                     (p) => p?.menu_category_id == c?.id
                   );
+
+                  // result_type=1: bonus product for category condition
+                  if (params?.result_type == 1 && filterProductsCategory?.length > 0 && params?.bonus_products?.length > 0) {
+                    const condProd = filterProductsCategory.find((p) => +c?.pcs <= p?.count);
+                    if (condProd) {
+                      const applicationCount =
+                        +params?.accumulation_type == 2 &&
+                        +params?.conditions_exactly == 1 &&
+                        +c?.pcs > 0
+                          ? Math.floor((+condProd?.count || 0) / +c?.pcs)
+                          : 1;
+                      params.bonus_products.forEach((bp) => {
+                        const bonusProductData = allProductsData?.find(
+                          (p) => +p.product_id === +bp.id
+                        );
+                        if (bonusProductData) {
+                          const alreadyAdded = updatedDiscountProducts?.find(
+                            (dsc) =>
+                              dsc?.discount?.promotion_id == d.promotion_id &&
+                              dsc?.product_id == bonusProductData.product_id
+                          );
+                          const isAutoApply = +d.auto_apply == 1;
+                          if (!alreadyAdded) {
+                            updatedDiscountProducts.push(
+                              buildBonusDiscountProduct({
+                                bonusProductData,
+                                discount: d,
+                                isAutoApply,
+                                countDisc: +c?.pcs,
+                                conditionType: 1,
+                                conditionProductId: condProd?.product_id,
+                                resultProductCount:
+                                  (+params.bonus_products_pcs || 1) *
+                                  Math.max(1, applicationCount),
+                                bonusDiscountPercent:
+                                  +params.bonus_products_condition_value || 100,
+                                promotionTrigger: [
+                                  {
+                                    id: +condProd?.product_id,
+                                    count: +c?.pcs || 1,
+                                  },
+                                ],
+                              })
+                            );
+                          } else {
+                            updatedDiscountProducts = updatedDiscountProducts.map((discountProduct) =>
+                              discountProduct?.discount?.promotion_id == d.promotion_id &&
+                              discountProduct?.product_id == bonusProductData.product_id
+                                ? {
+                                    ...discountProduct,
+                                    count:
+                                      (+params.bonus_products_pcs || 1) *
+                                      Math.max(1, applicationCount),
+                                    resultProductCount:
+                                      (+params.bonus_products_pcs || 1) *
+                                      Math.max(1, applicationCount),
+                                    promotionTrigger: [
+                                      {
+                                        id: +condProd?.product_id,
+                                        count: +c?.pcs || 1,
+                                      },
+                                    ],
+                                  }
+                                : discountProduct
+                            );
+                          }
+                          updatedDiscounts = updatedDiscounts.map((ds) => {
+                            if (ds.promotion_id == d.promotion_id) {
+                              return { ...ds, active: true, end: isAutoApply, prodCount: 1 };
+                            }
+                            return ds;
+                          });
+                        }
+                      });
+                    }
+                    break;
+                  }
+
+                  // result_type=4: fixed price for category condition
+                  if (params?.result_type == 4 && filterProductsCategory?.length > 0 && params?.discount_prices?.length > 0) {
+                    filterProductsCategory.forEach((prod) => {
+                      const discountPrice = params.discount_prices.find(
+                        (dp) => +dp.id === +prod.product_id
+                      );
+                      if (discountPrice && +c?.pcs <= prod?.count) {
+                        const alreadyAdded = updatedDiscountProducts?.find(
+                          (dsc) =>
+                            dsc?.discount?.promotion_id == d.promotion_id &&
+                            dsc?.product_id == prod.product_id
+                        );
+                        if (!alreadyAdded) {
+                          const isAutoApply = +d.auto_apply == 1;
+                          updatedDiscountProducts.push(
+                            buildFixedPriceDiscountProduct({
+                              product: prod,
+                              discount: d,
+                              isAutoApply,
+                              countDisc: +c?.pcs,
+                              fixedPrice: +discountPrice.price / 100,
+                              productCount: prod?.count,
+                              conditionType: 1,
+                            })
+                          );
+                          if (isAutoApply) {
+                            updatedProducts = updatedProducts.filter((upd) =>
+                              upd?.product_id != prod?.product_id
+                            );
+                          }
+                          updatedDiscounts = updatedDiscounts.map((ds) => {
+                            if (ds.promotion_id == d.promotion_id) {
+                              return { ...ds, active: true, end: isAutoApply, prodCount: 1 };
+                            }
+                            return ds;
+                          });
+                        }
+                      }
+                    });
+                    break;
+                  }
+
                   filterProductsCategory?.map((prod) => {
                     // kamida qo'shiladigani - no auto apply
                     if (
@@ -417,6 +590,123 @@ const useProductStore = create((set) => ({
                     (p) => +p.product_id === +c.id
                   );
 
+                  // result_type=1: bonus product - mahsulot shartini bajarsa, bonus mahsulot qo'shiladi
+                  if (params?.result_type == 1 && findProduct && +c?.pcs <= findProduct?.count && params?.bonus_products?.length > 0) {
+                    const applicationCount =
+                      +params?.accumulation_type == 2 &&
+                      +params?.conditions_exactly == 1 &&
+                      +c?.pcs > 0
+                        ? Math.floor((+findProduct?.count || 0) / +c?.pcs)
+                        : 1;
+                    params.bonus_products.forEach((bp) => {
+                      const bonusProductData = allProductsData?.find(
+                        (p) => +p.product_id === +bp.id
+                      );
+                      if (bonusProductData) {
+                        const alreadyAdded = updatedDiscountProducts?.find(
+                          (dsc) =>
+                            dsc?.discount?.promotion_id == d.promotion_id &&
+                            dsc?.product_id == bonusProductData.product_id
+                        );
+                        const isAutoApply = +d.auto_apply == 1;
+                        if (!alreadyAdded) {
+                          updatedDiscountProducts.push(
+                            buildBonusDiscountProduct({
+                              bonusProductData,
+                              discount: d,
+                              isAutoApply,
+                              countDisc: +c?.pcs,
+                              conditionType: 2,
+                              conditionProductId: findProduct?.product_id,
+                              resultProductCount:
+                                (+params.bonus_products_pcs || 1) *
+                                Math.max(1, applicationCount),
+                              bonusDiscountPercent:
+                                +params.bonus_products_condition_value || 100,
+                              promotionTrigger: [
+                                {
+                                  id: +findProduct?.product_id,
+                                  count: +c?.pcs || 1,
+                                },
+                              ],
+                            })
+                          );
+                        } else {
+                          updatedDiscountProducts = updatedDiscountProducts.map((discountProduct) =>
+                            discountProduct?.discount?.promotion_id == d.promotion_id &&
+                            discountProduct?.product_id == bonusProductData.product_id
+                              ? {
+                                  ...discountProduct,
+                                  count:
+                                    (+params.bonus_products_pcs || 1) *
+                                    Math.max(1, applicationCount),
+                                  resultProductCount:
+                                    (+params.bonus_products_pcs || 1) *
+                                    Math.max(1, applicationCount),
+                                  promotionTrigger: [
+                                    {
+                                      id: +findProduct?.product_id,
+                                      count: +c?.pcs || 1,
+                                    },
+                                  ],
+                                }
+                              : discountProduct
+                          );
+                        }
+                        updatedDiscounts = updatedDiscounts.map((ds) => {
+                          if (ds.promotion_id == d.promotion_id) {
+                            return { ...ds, active: true, end: isAutoApply, prodCount: 1 };
+                          }
+                          return ds;
+                        });
+                      }
+                    });
+                    break;
+                  }
+
+                  // result_type=4: fixed price - mahsulot narxi o'zgartiriladi
+                  if (params?.result_type == 4 && findProduct && +c?.pcs <= findProduct?.count && params?.discount_prices?.length > 0) {
+                    const discountPrice = params.discount_prices.find(
+                      (dp) => +dp.id === +findProduct.product_id
+                    );
+                    if (discountPrice) {
+                      const alreadyAdded = updatedDiscountProducts?.find(
+                        (dsc) =>
+                          dsc?.discount?.promotion_id == d.promotion_id &&
+                          dsc?.product_id == findProduct.product_id
+                      );
+                      if (!alreadyAdded) {
+                        const isAutoApply = +d.auto_apply == 1;
+                        updatedDiscountProducts.push(
+                          buildFixedPriceDiscountProduct({
+                            product: findProduct,
+                            discount: d,
+                            isAutoApply,
+                            countDisc: +c?.pcs,
+                            fixedPrice: +discountPrice.price / 100,
+                            productCount: findProduct?.count,
+                            conditionType: 2,
+                          })
+                        );
+                        if (isAutoApply) {
+                          updatedProducts = updatedProducts.filter((upd) => {
+                            if (upd?.product_id == findProduct?.product_id) {
+                              return false;
+                            }
+                            return true;
+                          });
+                        }
+                        updatedDiscounts = updatedDiscounts.map((ds) => {
+                          if (ds.promotion_id == d.promotion_id) {
+                            return { ...ds, active: true, end: isAutoApply, prodCount: 1 };
+                          }
+                          return ds;
+                        });
+                      }
+                    }
+                    break;
+                  }
+
                   // kamida qo'shiladigani - no auto apply
                   if (
                     +d.params?.conditions_exactly == 0 &&
@@ -660,6 +950,53 @@ const useProductStore = create((set) => ({
                     }
                   }
                   break;
+                case 0: // sum-based condition
+                  const orderTotal = updatedProducts.reduce((sum, p) => {
+                    const price = p?.price?.["1"] ? Number(p.price["1"]) : 0;
+                    return sum + price * (p?.count || 1);
+                  }, 0);
+                  if (c?.sum > 0 && orderTotal >= c.sum) {
+                    // result_type=1: bonus product
+                    if (params?.result_type == 1 && params?.bonus_products?.length > 0) {
+                      params.bonus_products.forEach((bp) => {
+                        const bonusProductData = allProductsData?.find(
+                          (p) => +p.product_id === +bp.id
+                        );
+                        if (bonusProductData) {
+                          const alreadyAdded = updatedDiscountProducts?.find(
+                            (dsc) =>
+                              dsc?.discount?.promotion_id == d.promotion_id &&
+                              dsc?.product_id == bonusProductData.product_id
+                          );
+                          if (!alreadyAdded) {
+                            const isAutoApply = +d.auto_apply == 1;
+                            updatedDiscountProducts.push(
+                              buildBonusDiscountProduct({
+                                bonusProductData,
+                                discount: d,
+                                isAutoApply,
+                                countDisc: 0,
+                                conditionType: 0,
+                                resultProductCount:
+                                  +params.bonus_products_pcs || 1,
+                                bonusDiscountPercent:
+                                  +params.bonus_products_condition_value || 100,
+                                promotionTrigger:
+                                  buildPromotionTriggerSnapshot(updatedProducts),
+                              })
+                            );
+                            updatedDiscounts = updatedDiscounts.map((ds) => {
+                              if (ds.promotion_id == d.promotion_id) {
+                                return { ...ds, active: true, end: isAutoApply, prodCount: 1 };
+                              }
+                              return ds;
+                            });
+                          }
+                        }
+                      });
+                    }
+                  }
+                  break;
                 // case 3: // modifications
                 //   handleModificationCondition(d, c, activeDiscountProducts);
                 //   break;
@@ -778,10 +1115,11 @@ const useProductStore = create((set) => ({
             "discountProducts",
             JSON.stringify(updatedDiscountProducts)
           );
-          set({ discountProducts: updatedDiscountProducts });
         }
 
-        set({ discounts: updatedDiscounts });
+        localStorage.setItem("products", JSON.stringify(updatedProducts));
+        localStorage.setItem("discounts", JSON.stringify(updatedDiscounts));
+        return { products: updatedProducts, discountProducts: updatedDiscountProducts, discounts: updatedDiscounts };
       }
 
       localStorage.setItem("products", JSON.stringify(updatedProducts));
@@ -820,7 +1158,7 @@ const useProductStore = create((set) => ({
     }),
   setDiscountsProduct: (product, discount) => {
     set((state) => {
-      let updatedDiscountProducts = state.discountProducts;
+      let updatedDiscountProducts = [...state.discountProducts];
       if (product && discount) {
         const existingProduct = state.discountProducts.find(
           (c) => +c.product_id == +product?.product_id
@@ -900,7 +1238,7 @@ const useProductStore = create((set) => ({
   ) =>
     set((state) => {
       if (product_id && !modif_id) {
-        let updatedDiscountProducts = state.discountProducts;
+        let updatedDiscountProducts = [...state.discountProducts];
         let updatedProducts = state.products.map((product) =>
           product.product_id === product_id
             ? { ...product, count: product.count + 1 }
@@ -1517,10 +1855,11 @@ const useProductStore = create((set) => ({
               "discountProducts",
               JSON.stringify(updatedDiscountProducts)
             );
-            set({ discountProducts: updatedDiscountProducts });
           }
 
-          set({ discounts: updatedDiscounts });
+          localStorage.setItem("products", JSON.stringify(updatedProducts));
+          localStorage.setItem("discounts", JSON.stringify(updatedDiscounts));
+          return { products: updatedProducts, discountProducts: updatedDiscountProducts, discounts: updatedDiscounts };
         }
 
         localStorage.setItem("products", JSON.stringify(updatedProducts));
@@ -1569,7 +1908,7 @@ const useProductStore = create((set) => ({
   ) =>
     set((state) => {
       if (product_id && !modif_id) {
-        let updatedDiscountProducts = state.discountProducts;
+        let updatedDiscountProducts = [...state.discountProducts];
         let updatedProducts = state.products
           .map((product) =>
             product?.product_id === product_id && product.count > 0
@@ -2188,10 +2527,11 @@ const useProductStore = create((set) => ({
               "discountProducts",
               JSON.stringify(updatedDiscountProducts)
             );
-            set({ discountProducts: updatedDiscountProducts });
           }
 
-          set({ discounts: updatedDiscounts });
+          localStorage.setItem("products", JSON.stringify(updatedProducts));
+          localStorage.setItem("discounts", JSON.stringify(updatedDiscounts));
+          return { products: updatedProducts, discountProducts: updatedDiscountProducts, discounts: updatedDiscounts };
         }
 
         localStorage.setItem("products", JSON.stringify(updatedProducts));
@@ -2233,9 +2573,16 @@ const useProductStore = create((set) => ({
   resetProduct: () => set(() => ({ products: [] })),
   incrementDiscount: (discount) =>
     set((state) => {
-      let updatedProducts = state?.products;
-      let updatedDiscounts = state?.discounts;
-      let filterProductDiscount = state.discountProducts;
+      let updatedProducts = [...state?.products];
+      let updatedDiscounts = [...state?.discounts];
+      let filterProductDiscount = [...state.discountProducts];
+      console.log("DEBUG incrementDiscount START:", {
+        promotion_id: discount?.promotion_id,
+        productsCount: updatedProducts.length,
+        products: updatedProducts.map(p => ({ id: p.product_id, count: p.count })),
+        discountProductsCount: filterProductDiscount.length,
+        discountProducts: filterProductDiscount.map(p => ({ id: p.product_id, promo: p.discount?.promotion_id, active: p.discount?.active, isBonus: p.isBonusProduct })),
+      });
       let firstActiveApplied = false;
       filterProductDiscount.sort((a, b) => {
         if (a.indexDisc == null && b.indexDisc == null) return 0; // Ikkalasi ham yo'q bo'lsa, tartibni o'zgartirmaslik
@@ -2248,18 +2595,34 @@ const useProductStore = create((set) => ({
         const findProd = updatedProducts?.find(
           (prd) => prd?.product_id == fDisc?.product_id
         );
-        console.log({firstActiveApplied});
-        
+
+        // Bonus product (result_type=1) - faqat active qilish
+        if (
+          fDisc?.discount?.promotion_id == discount?.promotion_id &&
+          fDisc?.isBonusProduct &&
+          !fDisc?.discount?.active
+        ) {
+          updatedDiscounts = updatedDiscounts.map((upd) => {
+            if (upd?.promotion_id == discount?.promotion_id) {
+              return { ...upd, active: true, end: true, prodCount: 1 };
+            } else return upd;
+          });
+          return {
+            ...fDisc,
+            discount: { ...fDisc?.discount, active: true },
+          };
+        }
+
         if (
           fDisc?.discount?.promotion_id == discount?.promotion_id &&
           findProd
         ) {
-          const discount = fDisc?.discount;
+          const storedDiscount = fDisc?.discount;
           // Kamida (faqat birinchi mahsulotni active qilish)
           if (
             discount?.params?.conditions_exactly == 0 &&
             !firstActiveApplied &&
-            !discount?.active
+            !storedDiscount?.active
           ) {
             firstActiveApplied = true; // Birinchi mahsulotni active qilishni belgilaymiz
             updatedDiscounts = updatedDiscounts.map((upd) => {
@@ -2278,7 +2641,7 @@ const useProductStore = create((set) => ({
             };
           } else if (
             discount?.params?.accumulation_type == 1 &&
-            !discount?.active &&
+            !storedDiscount?.active &&
             !firstActiveApplied
           ) {
             //bitta checkda faqat bitta aksiya
@@ -2348,6 +2711,11 @@ const useProductStore = create((set) => ({
         "discountProducts",
         JSON.stringify(filterProductDiscount)
       );
+      console.log("DEBUG incrementDiscount END:", {
+        productsCount: updatedProducts.length,
+        products: updatedProducts.map(p => ({ id: p.product_id, count: p.count })),
+        activeDiscountProducts: filterProductDiscount.filter(p => p.discount?.active).map(p => ({ id: p.product_id, promo: p.discount?.promotion_id })),
+      });
       return {
         discountProducts: filterProductDiscount,
         products: updatedProducts,
@@ -2355,14 +2723,22 @@ const useProductStore = create((set) => ({
     }),
   decrementDiscount: (discount) =>
     set((state) => {
-      let filterProductDiscount = state?.discountProducts;
-      let updatedProducts = state.products;
+      let filterProductDiscount = [...state?.discountProducts];
+      let updatedProducts = [...state.products];
 
       filterProductDiscount = filterProductDiscount?.map((fDisc) => {
         if (
           fDisc?.discount?.promotion_id == discount?.promotion_id &&
           fDisc?.discount?.active
         ) {
+          // Bonus product - faqat deaktivatsiya qilish, productlarga qaytarmaslik
+          if (fDisc?.isBonusProduct) {
+            return {
+              ...fDisc,
+              discount: { ...fDisc.discount, active: false },
+            };
+          }
+
           const discountProduct = updatedProducts?.find(
             (prod) => prod?.product_id === fDisc.product_id
           );
@@ -2376,14 +2752,12 @@ const useProductStore = create((set) => ({
                   count: (prd?.count || 0) + (fDisc?.count || 0),
                 };
               }
-              return prd; // Ensure to return the product for other cases
+              return prd;
             });
           } else {
-            console.log("Adding a new product to the list.");
             const { discounts, end, countDisc, productCount, ...newProduct } =
               fDisc;
 
-            // Ensure `newProduct` has valid fields
             updatedProducts.push({
               ...newProduct,
               count: fDisc?.count || 0,
@@ -2407,7 +2781,7 @@ const useProductStore = create((set) => ({
             };
           }
         } else {
-          return fDisc; // Ensure to return the original product if no changes
+          return fDisc;
         }
       });
       localStorage.setItem("products", JSON.stringify(updatedProducts));

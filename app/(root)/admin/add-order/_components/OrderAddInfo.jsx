@@ -48,7 +48,8 @@ export default function OrderAddInfo({ categoryData, productsData }) {
       product,
       modif_product,
       noDiscountProducts,
-      noDisccountCategories
+      noDisccountCategories,
+      productsData
     );
   };
 

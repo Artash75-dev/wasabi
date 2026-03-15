@@ -46,6 +46,61 @@ import { buildOrderComment } from "@/lib/orderComment";
 
 const socket = io();
 
+const getProductUnitPrice = (product, serviceOption) => {
+  let price = product?.price?.["1"] ? Number(product.price["1"]) / 100 : 0;
+  if (serviceOption?.id) {
+    const sourcePrice = product?.sources?.find(
+      (src) => src?.id == serviceOption?.id
+    )?.price;
+    if (sourcePrice) {
+      price = Number(sourcePrice) / 100;
+    }
+  }
+  return price;
+};
+
+const buildOrderProductsPayload = ({
+  products = [],
+  discountProducts = [],
+  serviceOption,
+}) => {
+  const regularProducts = products.map((product) => ({
+    product_name: product.product_name,
+    product_id: product.product_id,
+    count: product.count,
+    modifications: product.modifications ? product.modifications : [],
+    category_name: product.category_name,
+    menu_category_id: product.menu_category_id,
+    photo: product.photo,
+    price: getProductUnitPrice(product, serviceOption),
+  }));
+
+  const activeDiscountProducts = discountProducts
+    ?.filter((discountProduct) => discountProduct?.discount?.active)
+    ?.map((product) => ({
+      product_name: product.product_name,
+      product_id: product.product_id,
+      count: product.count,
+      modifications: product.modifications ? product.modifications : [],
+      category_name: product.category_name,
+      menu_category_id: product.menu_category_id,
+      photo: product.photo,
+      price: getProductUnitPrice(product, serviceOption),
+      promotion_id: product?.discount?.promotion_id,
+      result_type: product?.resultType ?? product?.discount?.params?.result_type,
+      isBonusProduct: product?.isBonusProduct || false,
+      conditionType: product?.conditionType,
+      conditionProductId: product?.conditionProductId,
+      fixedPrice: product?.fixedPrice,
+      resultProductId: product?.resultProductId,
+      resultProductCount: product?.resultProductCount,
+      bonusDiscountPercent: product?.bonusDiscountPercent,
+      promotionTrigger: product?.promotionTrigger,
+    }));
+
+  return [...regularProducts, ...activeDiscountProducts];
+};
+
 export default function OrderDialog({
   categoryData,
   productsData,
@@ -149,53 +204,21 @@ export default function OrderDialog({
           promocode,
         } = orderData;
 
-        let filterProducts = products?.map((p) => {
-          let priceProd = p?.price?.["1"] ? Number(p.price["1"]) / 100 : 0;
-          if (serviceOption?.id) {
-            const findSourcesPrice = p?.sources?.find(
-              (src) => src?.id == serviceOption?.id
-            )?.price;
-            if (findSourcesPrice) {
-              priceProd = Number(findSourcesPrice) / 100;
-            }
-          }
-          return {
-            product_name: p.product_name,
-            product_id: p.product_id,
-            count: p.count,
-            modifications: p.modifications ? p.modifications : [],
-            category_name: p.category_name,
-            menu_category_id: p.menu_category_id,
-            photo: p.photo,
-            price: priceProd,
-          };
+        const updatedProducts = buildOrderProductsPayload({
+          products,
+          discountProducts,
+          serviceOption,
         });
-        let filterProductsDiscount = discountProducts
-          ?.filter((dsc) => dsc?.discount?.active)
-          ?.map((p) => {
-            let priceProd = p?.price?.["1"] ? Number(p.price["1"]) / 100 : 0;
-            if (serviceOption?.id) {
-              const findSourcesPrice = p?.sources?.find(
-                (src) => src?.id == serviceOption?.id
-              )?.price;
-              if (findSourcesPrice) {
-                priceProd = Number(findSourcesPrice) / 100;
-              }
-            }
-            return {
-              product_name: p.product_name,
-              product_id: p.product_id,
-              count: p.count,
-              modifications: p.modifications ? p.modifications : [],
-              category_name: p.category_name,
-              menu_category_id: p.menu_category_id,
-              photo: p.photo,
-              price: priceProd, // Default to 0 if price["1"] is undefined
-              promotion_id: p?.discount?.promotion_id,
-            };
-          });
-
-        const updatedProducts = [...filterProducts, ...filterProductsDiscount];
+        console.log("DEBUG ORDER SUBMIT:", {
+          productsStoreLength: products?.length,
+          productsStore: JSON.stringify(products),
+          discountProductsStoreLength: discountProducts?.length,
+          activeDiscountProducts: discountProducts?.filter(d => d?.discount?.active)?.length,
+          filterProductsLength: updatedProducts?.filter((product) => !product?.promotion_id)?.length,
+          filterProductsDiscountLength: updatedProducts?.filter((product) => product?.promotion_id)?.length,
+          updatedProductsLength: updatedProducts?.length,
+          updatedProducts,
+        });
         const orderComment = buildOrderComment({
           manualComment: comment,
           clientAddressComment: clientData?.comment,
@@ -249,7 +272,12 @@ export default function OrderDialog({
           pay_cash,
           pay_sertificate,
           client_address_id: Number(clientData?.client_address_id),
+          products: updatedProducts,
         };
+        setOrderData((prev) => ({
+          ...prev,
+          products: updatedProducts,
+        }));
         if (filterOrderData) {
           const res = await axios.post("/api/order", filterOrderData);
           if (res) {
@@ -358,8 +386,19 @@ export default function OrderDialog({
     let total = 0;
 
     // Helper function to calculate the discounted price
-    const applyDiscount = (price, discount) => {
+    const applyDiscount = (price, discount, product) => {
       if (!discount) return roundToTwoDecimals(price);
+
+      // result_type=1: bonus product - narxi bonusDiscountPercent ga qarab
+      if (product?.isBonusProduct) {
+        const bonusPercent = product?.bonusDiscountPercent || 100;
+        return roundToTwoDecimals(price * (100 - bonusPercent) / 100);
+      }
+
+      // result_type=4: fixed price
+      if (product?.fixedPrice != null) {
+        return roundToTwoDecimals(product.fixedPrice);
+      }
 
       if (discount?.params?.result_type == 2) {
         // Fixed discount
@@ -380,9 +419,9 @@ export default function OrderDialog({
     let productPrice = Number(product?.price["1"]) / 100;
     if (active) {
       if (product?.discount?.active) {
-        productPrice = applyDiscount(productPrice, product?.discount);
+        productPrice = applyDiscount(productPrice, product?.discount, product);
       } else {
-        productPrice = applyDiscount(productPrice, null);
+        productPrice = applyDiscount(productPrice, null, product);
       }
     }
     total += productPrice * product?.count;
@@ -845,7 +884,12 @@ const OrderCheck = ({
                       }
                       const renderRow = (name, count, price) => {
                         let prs;
-                        if (item?.discount?.params?.result_type == 2) {
+                        if (item?.isBonusProduct) {
+                          const bonusPercent = item?.bonusDiscountPercent || 100;
+                          prs = price * (100 - bonusPercent) / 100;
+                        } else if (item?.fixedPrice != null) {
+                          prs = item.fixedPrice;
+                        } else if (item?.discount?.params?.result_type == 2) {
                           prs = Math.max(
                             0,
                             price - item?.discount.params.discount_value / 100
@@ -855,7 +899,7 @@ const OrderCheck = ({
                             (price *
                               (100 - +item?.discount.params.discount_value)) /
                             100;
-                        } else if (item?.discount?.params?.result_type == 1) {
+                        } else {
                           prs = price;
                         }
 

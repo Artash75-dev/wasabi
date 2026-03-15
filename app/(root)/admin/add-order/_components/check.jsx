@@ -175,7 +175,14 @@ const Check = ({ products, productsData, categoryData }) => {
                           return null;
                         }
                         let prs;
-                        if (discount?.params?.result_type == 2) {
+                        if (item?.isBonusProduct) {
+                          // result_type=1: bonus product - narxi bonusDiscountPercent ga qarab
+                          const bonusPercent = item?.bonusDiscountPercent || 100;
+                          prs = price * (100 - bonusPercent) / 100;
+                        } else if (item?.fixedPrice != null) {
+                          // result_type=4: fixed price
+                          prs = item.fixedPrice;
+                        } else if (discount?.params?.result_type == 2) {
                           prs = Math.max(
                             0,
                             price - discount?.params.discount_value / 100
@@ -197,23 +204,27 @@ const Check = ({ products, productsData, categoryData }) => {
                               )}
                             </td>
                             <td className="text-thin px-2 py-1 textSmall2 text-center">
-                              <div className="flex items-center justify-center gap-2">
-                                <button
-                                  onClick={() => plusDiscount(item)}
-                                  className="p-1 text-primary hover:bg-border rounded-full shadow-md 
-                active:bg-gray-100 transition-all ease-linear duration-100"
-                                >
-                                  <Plus size={18} />
-                                </button>
+                              {item?.isBonusProduct ? (
                                 <h1 className="min-w-4">{count}</h1>
-                                <button
-                                  onClick={() => minusDiscount(item)}
-                                  className="p-1 text-primary hover:bg-border rounded-full shadow-md 
-                active:bg-gray-100 transition-all ease-linear duration-100"
-                                >
-                                  <Minus size={18} />
-                                </button>
-                              </div>
+                              ) : (
+                                <div className="flex items-center justify-center gap-2">
+                                  <button
+                                    onClick={() => plusDiscount(item)}
+                                    className="p-1 text-primary hover:bg-border rounded-full shadow-md
+                  active:bg-gray-100 transition-all ease-linear duration-100"
+                                  >
+                                    <Plus size={18} />
+                                  </button>
+                                  <h1 className="min-w-4">{count}</h1>
+                                  <button
+                                    onClick={() => minusDiscount(item)}
+                                    className="p-1 text-primary hover:bg-border rounded-full shadow-md
+                  active:bg-gray-100 transition-all ease-linear duration-100"
+                                  >
+                                    <Minus size={18} />
+                                  </button>
+                                </div>
+                              )}
                             </td>
                             <td className="text-thin px-2 py-1 textSmall2 text-right">
                               <h1 className=""> {prs} </h1>

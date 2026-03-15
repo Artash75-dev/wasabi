@@ -17,6 +17,7 @@ export default function SideBarOrder({
   orderSources,
 }) {
   const [loading, setIsLoading] = useState(true);
+  const [discountLoading, setDiscountLoading] = useState(true);
   const {
     products,
     initializeProducts,
@@ -57,9 +58,72 @@ export default function SideBarOrder({
       case 2:
         return <Client loading={loading} />;
       case 3:
-        return <Discount />;
+        return <Discount loading={discountLoading} />;
       default:
         return null;
+    }
+  };
+
+  const fetchPromotions = async () => {
+    try {
+      setDiscountLoading(true);
+      const res = await getData("clients.getPromotions");
+
+      const discountProductsLocal = localStorage.getItem("discountProducts")
+        ? JSON.parse(localStorage.getItem("discountProducts"))
+        : [];
+      const promotions = res?.response;
+      let filterPromotions = promotions?.filter((prom) => {
+        const nowTimestamp = Date.now();
+        const startTimestamp = new Date(prom.date_start).getTime();
+        const endTimestamp = new Date(prom.date_end).getTime();
+
+        const adjustedWeekDay = (new Date().getDay() + 6) % 7;
+
+        const isDateValid =
+          startTimestamp <= nowTimestamp && nowTimestamp <= endTimestamp;
+
+        const isPeriodValid = prom?.params?.periods?.some((period) => {
+          const [startHour, startMinute] = period.start
+            .split(":")
+            .map(Number);
+          const [endHour, endMinute] = period.end.split(":").map(Number);
+
+          const startTime = new Date();
+          startTime.setHours(startHour, startMinute, 0, 0);
+          const startTimestampPeriod = startTime.getTime();
+
+          const endTime = new Date();
+          endTime.setHours(endHour, endMinute, 0, 0);
+          const endTimestampPeriod = endTime.getTime();
+
+          return (
+            nowTimestamp >= startTimestampPeriod &&
+            nowTimestamp <= endTimestampPeriod
+          );
+        });
+
+        const isWeekDayValid =
+          prom?.params?.week_days &&
+          prom.params.week_days[adjustedWeekDay] == "1";
+
+        return isDateValid && isPeriodValid && isWeekDayValid;
+      });
+
+      filterPromotions = filterPromotions.map((fpr) => {
+        const findDiscount = discountProductsLocal?.find(
+          (ds) => ds?.discount?.promotion_id == fpr?.promotion_id
+        );
+
+        return findDiscount ? { ...fpr, active: true } : fpr;
+      });
+
+      if (filterPromotions) {
+        setDiscounts(filterPromotions);
+      }
+    } catch (error) {
+    } finally {
+      setDiscountLoading(false);
     }
   };
 
@@ -76,81 +140,12 @@ export default function SideBarOrder({
     initializeProducts();
     initializeDiscountProducts();
     initializeDiscounts();
+    fetchPromotions();
   }, []);
 
   useEffect(() => {
     if (activeTab == 3) {
-      const fetchData = async () => {
-        try {
-          const res = await getData("clients.getPromotions");
-          console.log(res, "discounts");
-
-          const discountProducts = localStorage.getItem("discountProducts")
-            ? JSON.parse(localStorage.getItem("discountProducts"))
-            : [];
-          const promotions = res?.response;
-          let filterPromotions = promotions?.filter((prom) => {
-            const nowTimestamp = Date.now(); // Hozirgi vaqt (millisekundlarda)
-            const startTimestamp = new Date(prom.date_start).getTime(); // Boshlanish sanasi
-            const endTimestamp = new Date(prom.date_end).getTime(); // Tugash sanasi
-
-            // Haftani moslashtirish (0 = Dushanba, 6 = Yakshanba)
-            const adjustedWeekDay = (new Date().getDay() + 6) % 7;
-
-            // Sana bo'yicha tekshiruv
-            const isDateValid =
-              startTimestamp <= nowTimestamp && nowTimestamp <= endTimestamp;
-
-            // Period bo'yicha tekshiruv
-            const isPeriodValid = prom?.params?.periods?.some((period) => {
-              const [startHour, startMinute] = period.start
-                .split(":")
-                .map(Number);
-              const [endHour, endMinute] = period.end.split(":").map(Number);
-
-              const startTime = new Date();
-              startTime.setHours(startHour, startMinute, 0, 0);
-              const startTimestampPeriod = startTime.getTime();
-
-              const endTime = new Date();
-              endTime.setHours(endHour, endMinute, 0, 0);
-              const endTimestampPeriod = endTime.getTime();
-
-              console.log({
-                startTimestampPeriod,
-                endTimestampPeriod,
-                nowTimestamp,
-              });
-              return (
-                nowTimestamp >= startTimestampPeriod &&
-                nowTimestamp <= endTimestampPeriod
-              );
-            });
-
-            // Hafta kuni bo'yicha tekshiruv
-            const isWeekDayValid =
-              prom?.params?.week_days &&
-              prom.params.week_days[adjustedWeekDay] == "1";
-
-            // Uchala shart bajarilishi kerak
-            return isDateValid && isPeriodValid && isWeekDayValid;
-          });
-
-          filterPromotions = filterPromotions.map((fpr) => {
-            const findDiscount = discountProducts?.find(
-              (ds) => ds?.discount?.promotion_id == fpr?.promotion_id
-            );
-
-            return findDiscount ? { ...fpr, active: true } : fpr;
-          });
-
-          console.log(filterPromotions, "discount");
-          if (filterPromotions) {
-            setDiscounts(filterPromotions);
-          }
-        } catch (error) {}
-      };
-      fetchData();
+      fetchPromotions();
     }
   }, [activeTab]);
 
