@@ -4,6 +4,7 @@ import Container from "@/components/shared/container";
 import Loader from "@/components/shared/loader";
 import { api } from "@/convex/_generated/api";
 import { statusData } from "@/lib/iterationDetails";
+import { getDishModificationLabel } from "@/lib/dishModifiers";
 import useProductStore from "@/store/event";
 import { useQuery } from "convex/react";
 import React, { useEffect, useState } from "react";
@@ -159,8 +160,13 @@ const OrderCheck = ({ orderData, products, deliveryPrice, discount }) => {
                 </React.Fragment>
               );
             } else {
+              const dishModificationLabel = getDishModificationLabel(
+                item?.selectedDishModifications
+              );
               return renderRow(
-                item.product_name,
+                dishModificationLabel
+                  ? `${item.product_name} — ${dishModificationLabel}`
+                  : item.product_name,
                 item.count,
                 Number(item?.price)
               );

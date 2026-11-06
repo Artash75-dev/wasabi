@@ -53,6 +53,19 @@ const buildFixedPriceDiscountProduct = ({
   productCount,
 });
 
+const isSameCartProduct = (product, candidate) => {
+  if (candidate?.cartKey) {
+    return product?.cartKey === candidate.cartKey;
+  }
+
+  return !product?.cartKey && product?.product_id === candidate?.product_id;
+};
+
+const matchesCartProduct = (product, productId, cartKey) =>
+  cartKey
+    ? product?.cartKey === cartKey
+    : !product?.cartKey && product?.product_id === productId;
+
 export const useEvent = create((set) => ({
   activeTab: 1,
   timeRange: "1d",
@@ -184,10 +197,10 @@ const useProductStore = create((set) => ({
       } else {
         //product count
         updatedProducts = state.products.some(
-          (p) => p.product_id === data.product_id
+          (p) => isSameCartProduct(p, data)
         )
           ? state.products.map((p) =>
-              p.product_id === data.product_id
+              isSameCartProduct(p, data)
                 ? { ...p, count: p.count + 1 }
                 : p
             )
@@ -1234,13 +1247,14 @@ const useProductStore = create((set) => ({
     product_id,
     modif_id,
     noDiscountProducts,
-    noDisccountCategories
+    noDisccountCategories,
+    cartKey
   ) =>
     set((state) => {
       if (product_id && !modif_id) {
         let updatedDiscountProducts = [...state.discountProducts];
         let updatedProducts = state.products.map((product) =>
-          product.product_id === product_id
+          matchesCartProduct(product, product_id, cartKey)
             ? { ...product, count: product.count + 1 }
             : product
         );
@@ -1904,14 +1918,16 @@ const useProductStore = create((set) => ({
     product_id,
     modif_id,
     noDiscountProducts,
-    noDisccountCategories
+    noDisccountCategories,
+    cartKey
   ) =>
     set((state) => {
       if (product_id && !modif_id) {
         let updatedDiscountProducts = [...state.discountProducts];
         let updatedProducts = state.products
           .map((product) =>
-            product?.product_id === product_id && product.count > 0
+            matchesCartProduct(product, product_id, cartKey) &&
+            product.count > 0
               ? { ...product, count: product.count - 1 }
               : product
           )

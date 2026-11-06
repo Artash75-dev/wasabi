@@ -4,6 +4,10 @@ import {
   isBotLikeSource,
 } from "@/lib/orderSource";
 import { postApi } from "@/lib/requestApi";
+import {
+  createDishModificationSelectionKey,
+  serializeDishModificationsForPoster,
+} from "@/lib/dishModifiers";
 import { fetchMutation, fetchQuery } from "convex/nextjs";
 
 const getProductAggregateKey = (product) =>
@@ -15,6 +19,9 @@ const getProductAggregateKey = (product) =>
     product?.conditionProductId
       ? `cond:${+product.conditionProductId}`
       : "cond:none",
+    `dish:${createDishModificationSelectionKey(
+      product?.selectedDishModifications
+    )}`,
   ].join("|");
 
 const buildPosterInvolvedProducts = (product) => {
@@ -189,6 +196,7 @@ export async function POST(request) {
         resultProductCount,
         bonusDiscountPercent,
         promotionTrigger,
+        selectedDishModifications,
       } = item;
 
       return {
@@ -210,6 +218,7 @@ export async function POST(request) {
         resultProductCount,
         bonusDiscountPercent,
         promotionTrigger,
+        selectedDishModifications,
       };
     });
 
@@ -228,29 +237,50 @@ export async function POST(request) {
     }, []);
 
     // Bonus mahsulotlarni Poster uchun products ro'yxatidan chiqarish (Poster o'zi qo'shadi)
-    let filterProducts = productsData.filter((p) => !p?.isBonusProduct).map((p) => {
-      if (!p?.modifications?.length > 0 && !serviceOption?.id) {
-        return {
-          product_id: p.product_id,
-          count: p.count,
+    let filterProducts = productsData
+      .filter(
+        (product) =>
+          !product?.isBonusProduct &&
+          (!Array.isArray(product?.modifications) ||
+            product.modifications.length === 0)
+      )
+      .map((product) => {
+        const posterProduct = {
+          product_id: product.product_id,
+          count: product.count,
         };
-      } else if (!p?.modifications?.length > 0 && serviceOption?.id) {
-        return {
-          product_id: p.product_id,
-          count: p.count,
-          price: +p?.price * 100,
-        };
-      }
-    });
+        const dishModification = serializeDishModificationsForPoster(
+          product.selectedDishModifications
+        );
+
+        if (dishModification) {
+          posterProduct.modification = dishModification;
+        }
+
+        if (serviceOption?.id) {
+          posterProduct.price = +product?.price * 100;
+        }
+
+        return posterProduct;
+      });
     productsData.filter((p) => !p?.isBonusProduct).forEach((product) => {
       if (product?.modifications?.length > 0) {
+        const dishModification = serializeDishModificationsForPoster(
+          product.selectedDishModifications
+        );
         const findModif = product?.modifications?.map((md) => {
-          return {
+          const posterProduct = {
             product_id: product.product_id,
             modificator_id: md.modificator_id,
             count: md.count,
             price: md?.spots[0]?.price,
           };
+
+          if (dishModification) {
+            posterProduct.modification = dishModification;
+          }
+
+          return posterProduct;
         });
         filterProducts = [...filterProducts, ...findModif];
       }

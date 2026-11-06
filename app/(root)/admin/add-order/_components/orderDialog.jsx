@@ -43,6 +43,10 @@ import {
 import { roundToTwoDecimals } from "@/lib/functions";
 import { getCreatingStatus } from "@/lib/orderSource";
 import { buildOrderComment } from "@/lib/orderComment";
+import {
+  getDishModificationLabel,
+  getDishModificationPrice,
+} from "@/lib/dishModifiers";
 
 const socket = io();
 
@@ -56,7 +60,7 @@ const getProductUnitPrice = (product, serviceOption) => {
       price = Number(sourcePrice) / 100;
     }
   }
-  return price;
+  return price + getDishModificationPrice(product?.selectedDishModifications) / 100;
 };
 
 const buildOrderProductsPayload = ({
@@ -73,6 +77,7 @@ const buildOrderProductsPayload = ({
     menu_category_id: product.menu_category_id,
     photo: product.photo,
     price: getProductUnitPrice(product, serviceOption),
+    selectedDishModifications: product.selectedDishModifications || [],
   }));
 
   const activeDiscountProducts = discountProducts
@@ -96,6 +101,7 @@ const buildOrderProductsPayload = ({
       resultProductCount: product?.resultProductCount,
       bonusDiscountPercent: product?.bonusDiscountPercent,
       promotionTrigger: product?.promotionTrigger,
+      selectedDishModifications: product.selectedDishModifications || [],
     }));
 
   return [...regularProducts, ...activeDiscountProducts];
@@ -416,7 +422,9 @@ export default function OrderDialog({
     };
 
     // Calculate product price
-    let productPrice = Number(product?.price["1"]) / 100;
+    let productPrice =
+      Number(product?.price["1"]) / 100 +
+      getDishModificationPrice(product?.selectedDishModifications) / 100;
     if (active) {
       if (product?.discount?.active) {
         productPrice = applyDiscount(productPrice, product?.discount, product);
@@ -871,10 +879,15 @@ const OrderCheck = ({
                           </React.Fragment>
                         );
                       } else {
+                        const dishModificationLabel = getDishModificationLabel(
+                          item?.selectedDishModifications
+                        );
                         return renderRow(
-                          item.product_name,
+                          dishModificationLabel
+                            ? `${item.product_name} — ${dishModificationLabel}`
+                            : item.product_name,
                           item.count,
-                          Number(item?.price["1"]) / 100
+                          getProductUnitPrice(item, orderData?.serviceOption)
                         );
                       }
                     })}

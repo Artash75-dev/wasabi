@@ -20,6 +20,11 @@ import {
 } from "@/components/ui/dropdown-menu";
 import useProductStore, { orderCreateInfo, useEvent } from "@/store/event";
 import ClientInfo from "./clientInfo";
+import DishModifierDialog from "./DishModifierDialog";
+import {
+  createDishModificationCartKey,
+  hasDishModifications,
+} from "@/lib/dishModifiers";
 
 export default function OrderAddInfo({ categoryData, productsData }) {
   const router = useRouter();
@@ -27,6 +32,7 @@ export default function OrderAddInfo({ categoryData, productsData }) {
   const { orderData } = orderCreateInfo();
   const [data, setData] = useState(null);
   const [filterSearchData, setFilterSearchData] = useState(null);
+  const [dishModifierProduct, setDishModifierProduct] = useState(null);
   const { searchValue, searchFocus } = useEvent();
   const searchParams = useSearchParams();
   const topCategory = searchParams.get("topCategory");
@@ -43,7 +49,7 @@ export default function OrderAddInfo({ categoryData, productsData }) {
     router.back();
   };
 
-  const handleAddProduct = (product, modif_product) => {
+  const addProductToCart = (product, modif_product) => {
     setProducts(
       product,
       modif_product,
@@ -51,6 +57,30 @@ export default function OrderAddInfo({ categoryData, productsData }) {
       noDisccountCategories,
       productsData
     );
+  };
+
+  const handleAddProduct = (product, modif_product) => {
+    if (!modif_product && hasDishModifications(product)) {
+      setDishModifierProduct(product);
+      return;
+    }
+
+    addProductToCart(product, modif_product);
+  };
+
+  const handleDishModifierConfirm = (selectedDishModifications) => {
+    if (!dishModifierProduct) {
+      return;
+    }
+
+    addProductToCart({
+      ...dishModifierProduct,
+      selectedDishModifications,
+      cartKey: createDishModificationCartKey(
+        dishModifierProduct.product_id,
+        selectedDishModifications
+      ),
+    });
   };
 
   useEffect(() => {
@@ -96,7 +126,8 @@ export default function OrderAddInfo({ categoryData, productsData }) {
   ]);
 
   return (
-    <aside className="col-span-3 p-4">
+    <>
+      <aside className="col-span-3 p-4">
       <section className="w-full space-y-2">
         {client || newClient ? (
           <ClientInfo />
@@ -262,6 +293,17 @@ export default function OrderAddInfo({ categoryData, productsData }) {
           </>
         )}
       </section>
-    </aside>
+      </aside>
+      <DishModifierDialog
+        product={dishModifierProduct}
+        open={Boolean(dishModifierProduct)}
+        onOpenChange={(open) => {
+          if (!open) {
+            setDishModifierProduct(null);
+          }
+        }}
+        onConfirm={handleDishModifierConfirm}
+      />
+    </>
   );
 }

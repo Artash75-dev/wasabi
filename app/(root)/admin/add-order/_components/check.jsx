@@ -1,4 +1,8 @@
 import useProductStore from "@/store/event";
+import {
+  getDishModificationLabel,
+  getDishModificationPrice,
+} from "@/lib/dishModifiers";
 import { Minus, Plus } from "lucide-react";
 import React from "react";
 
@@ -14,7 +18,7 @@ const Check = ({ products, productsData, categoryData }) => {
   const noDisccountCategories = categoryData?.filter(
     (c) => +c?.nodiscount == 1
   );
-  const noDiscountProducts = categoryData?.filter((p) => +p?.nodiscount == 1);
+  const noDiscountProducts = productsData?.filter((p) => +p?.nodiscount == 1);
   console.log({discountProducts})
   return (
     <main className="p-3">
@@ -44,7 +48,8 @@ const Check = ({ products, productsData, categoryData }) => {
                   count,
                   product_id,
                   modif_id,
-                  price
+                  price,
+                  cartKey
                 ) => {
                   let findDiscount = null,
                     prs = 0;
@@ -84,7 +89,8 @@ const Check = ({ products, productsData, categoryData }) => {
                                 product_id,
                                 modif_id && modif_id,
                                 noDiscountProducts,
-                                noDisccountCategories
+                                noDisccountCategories,
+                                cartKey
                               );
                             }}
                             className="p-1 text-primary hover:bg-border rounded-full shadow-md 
@@ -99,7 +105,8 @@ const Check = ({ products, productsData, categoryData }) => {
                                 product_id,
                                 modif_id && modif_id,
                                 noDiscountProducts,
-                                noDisccountCategories
+                                noDisccountCategories,
+                                cartKey
                               )
                             }
                             className="p-1 text-primary hover:bg-border rounded-full shadow-md 
@@ -148,12 +155,22 @@ const Check = ({ products, productsData, categoryData }) => {
                     </React.Fragment>
                   );
                 } else {
+                  const dishModificationLabel = getDishModificationLabel(
+                    item?.selectedDishModifications
+                  );
+                  const dishModificationPrice =
+                    getDishModificationPrice(item?.selectedDishModifications) /
+                    100;
+
                   return renderRow(
-                    item?.product_name,
+                    dishModificationLabel
+                      ? `${item?.product_name} — ${dishModificationLabel}`
+                      : item?.product_name,
                     item?.count,
                     item?.product_id,
                     0,
-                    Number(item?.price["1"]) / 100
+                    Number(item?.price["1"]) / 100 + dishModificationPrice,
+                    item?.cartKey
                   );
                 }
               })}

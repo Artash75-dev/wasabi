@@ -28,6 +28,7 @@ import {
   CollapsibleTrigger,
 } from "@/components/ui/collapsible";
 import { toast as toastSunner } from "sonner";
+import { getDishModificationLabel } from "@/lib/dishModifiers";
 
 const socket = io();
 
@@ -285,8 +286,13 @@ const OrderItem = ({ params }) => {
                     </React.Fragment>
                   );
                 } else {
+                  const dishModificationLabel = getDishModificationLabel(
+                    item?.selectedDishModifications
+                  );
                   return renderRow(
-                    item.product_name,
+                    dishModificationLabel
+                      ? `${item.product_name} — ${dishModificationLabel}`
+                      : item.product_name,
                     item.count,
                     item?.price,
                     item?.promotion_id
