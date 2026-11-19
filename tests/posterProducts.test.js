@@ -11,7 +11,7 @@ test("removes heavy recipe fields from the admin product list", () => {
     product_production_description: "Технологическая инструкция",
     profit: { 1: 1000 },
     price: { 1: 6900000 },
-    sources: [{ source_id: 1, price: 6900000 }],
+    sources: [{ id: 1, name: "Сайт", price: 6900000, visible: 1 }],
     modifications: [{ modificator_id: 10 }],
     group_modifications: [
       {
@@ -26,6 +26,7 @@ test("removes heavy recipe fields from the admin product list", () => {
   assert.equal(summary.profit, undefined);
   assert.equal(summary.product_id, "572");
   assert.equal(summary.sources.length, 1);
+  assert.deepEqual(summary.sources[0], { id: 1, price: 6900000 });
   assert.equal(summary.modifications.length, 1);
   assert.equal(summary.group_modifications[0].modifications.length, 1);
 });
