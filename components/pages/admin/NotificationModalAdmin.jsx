@@ -55,8 +55,6 @@ export default function NotificationModalAdmin() {
     removeDiscount,
   } = useProductStore();
   const { playSound } = useAudio();
-  const [products, setAvailableProducts] = useState([]);
-  const [branches, setBranches] = useState([]);
   const isNotificationInitialized = useRef(false);
   const knownOrderIds = useRef(new Set());
   const router = useRouter();
@@ -67,30 +65,10 @@ export default function NotificationModalAdmin() {
     try {
       console.log(order);
       setReflesh();
-      const productIds = [
-        ...new Set(
-          (order?.products || []).map((product) => product.product_id)
-        ),
-      ].join(",");
-      const [clientResponse, productResponse, branchResponse] =
-        await Promise.all([
-          axios.get(`/api/client?id=${order?.client_id}`),
-          products.length > 0
-            ? null
-            : axios.get(`/api/product?ids=${productIds}`),
-          branches.length > 0 ? null : axios.get(`/api/branch`),
-        ]);
+      const clientResponse = await axios.get(
+        `/api/client?id=${order?.client_id}`
+      );
       let clientData = clientResponse.data;
-      const availableProducts =
-        productResponse?.data?.data || products;
-      const availableBranches = branchResponse?.data?.data || branches;
-
-      if (productResponse) {
-        setAvailableProducts(availableProducts);
-      }
-      if (branchResponse) {
-        setBranches(availableBranches);
-      }
 
       if (order?.address) {
         clientData = {
@@ -104,36 +82,24 @@ export default function NotificationModalAdmin() {
 
       const filterProducts = (order?.products || []).flatMap(
         (orderProduct) => {
-          const product = availableProducts.find(
-            (item) => +item.product_id === +orderProduct.product_id
-          );
-
-          if (!product) {
-            return [];
-          }
-
-          const productCount = orderProduct?.count || product.count || 1;
+          const productCount = orderProduct?.count || 1;
           const selectedDishModifications =
             orderProduct?.selectedDishModifications || [];
           const cartKey = selectedDishModifications.length
             ? createDishModificationCartKey(
-                product.product_id,
+                orderProduct.product_id,
                 selectedDishModifications
               )
             : undefined;
 
           // Create an array with length equal to count and map to individual products
           return Array.from({ length: productCount }, () => ({
-            ...product,
+            ...orderProduct,
             count: 1, // Each split product has count of 1
-            modifications:
-              orderProduct?.modifications?.length > 0
-                ? orderProduct.modifications
-                : product.modifications,
+            modifications: orderProduct?.modifications || [],
             selectedDishModifications,
             cartKey,
-            promotion_id:
-              orderProduct?.promotion_id || product.promotion_id || null,
+            promotion_id: orderProduct?.promotion_id || null,
           }));
         }
       );
@@ -172,11 +138,7 @@ export default function NotificationModalAdmin() {
         setOrderData({
           _id: order?._id,
           spot_id: order?.spot_id ? Number(order?.spot_id) : 0,
-          spot_name: order?.spot_id
-            ? availableBranches?.find(
-                (spot) => spot?.spot_id == order?.spot_id
-              )?.name
-            : "",
+          spot_name: order?.spot_name || "",
           phone: order?.phone,
           service_mode: order?.service_mode,
           payment_method: order?.payment_method,

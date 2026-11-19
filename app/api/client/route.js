@@ -1,4 +1,5 @@
 import { ApiService } from "@/lib/api.services";
+import { getCachedClientGroups } from "@/lib/posterClients.server";
 import { postApi } from "@/lib/requestApi";
 
 export async function GET(req) {
@@ -17,26 +18,28 @@ export async function GET(req) {
           status: 404,
         });
       }
-      const clientGroup = await ApiService.getData(
-        `clients.getGroup`,
-        `&group_id=${client?.response[0]?.client_groups_id}`
+      const clientGroups = await getCachedClientGroups();
+      const clientGroup = clientGroups.find(
+        (group) =>
+          Number(group.client_groups_id) ===
+          Number(client?.response[0]?.client_groups_id)
       );
       return new Response(
         JSON.stringify({
           client: client.response[0],
-          group: clientGroup.response,
+          group: clientGroup || null,
         }),
         { status: 200 }
       );
     }
     if (groupId) {
-      const client = await ApiService.getData(`clients.getGroups`);
-      if (!client) {
+      const clientGroups = await getCachedClientGroups();
+      if (!clientGroups) {
         return new Response(JSON.stringify({ error: "Client not found" }), {
           status: 404,
         });
       }
-      return new Response(JSON.stringify(client.response), { status: 200 });
+      return new Response(JSON.stringify(clientGroups), { status: 200 });
     } else {
       const clients = await ApiService.getData(`clients.getClients`);
       return new Response(JSON.stringify(clients.response), { status: 200 });
