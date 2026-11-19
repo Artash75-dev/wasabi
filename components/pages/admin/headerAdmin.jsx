@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React from "react";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -14,15 +14,13 @@ import NavItems from "@/components/shared/navItems";
 import Container from "@/components/shared/container";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { createOrder } from "@/public/images";
-import { BrushIcon, LogOut, RefreshCw, Trash2 } from "lucide-react";
+import { LogOut, RefreshCw, Trash2 } from "lucide-react";
 import Image from "next/image";
 import Cookies from "js-cookie";
-import axios from "axios";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 
 const HeaderAdmin = ({ pathname, authData }) => {
-  const [products, setProducts] = useState([]);
   const router = useRouter();
 
 const clearCache = async () => {
@@ -66,20 +64,6 @@ const clearOrders = async () => {
   }
 }
 
-  useEffect(() => {
-    const fetchData = async () => {
-      try {
-        const [productResponse] = await Promise.all([
-          axios.get(`/api/product`),
-        ]);
-        setProducts(productResponse.data?.data);
-      } catch (error) {
-        console.log(error);
-      }
-    };
-    fetchData();
-  }, []);
-
   return (
     <Container
       className={`${
@@ -104,7 +88,7 @@ const clearOrders = async () => {
             </Link>
           </Button>
 
-          <NotificationModalAdmin products={products} />
+          <NotificationModalAdmin />
           <DropdownMenu>
             <DropdownMenuTrigger>
               <Avatar>

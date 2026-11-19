@@ -1,7 +1,7 @@
 "use client";
 
 import { motion } from "framer-motion";
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import OrderDialog from "./orderDialog";
 import useProductStore, { orderCreateInfo, useEvent } from "@/store/event";
 import Check from "./check";
@@ -29,6 +29,7 @@ export default function SideBarOrder({
   const { setClients } = useEvent();
   const { activeTab, setActiveTab } = useEvent();
   const [countDics, setCountDics] = useState(0);
+  const clientLoadStarted = useRef(false);
 
   const orderListData = [
     {
@@ -128,20 +129,24 @@ export default function SideBarOrder({
   };
 
   useEffect(() => {
-    (async () => {
-      try {
-        const client = await axios.get("/api/client");
-        setClients(client.data);
-      } catch (error) {
-      } finally {
-        setIsLoading(false);
-      }
-    })();
     initializeProducts();
     initializeDiscountProducts();
     initializeDiscounts();
     fetchPromotions();
   }, []);
+
+  useEffect(() => {
+    if (activeTab !== 2 || clientLoadStarted.current) {
+      return;
+    }
+
+    clientLoadStarted.current = true;
+    setIsLoading(true);
+    axios
+      .get("/api/client")
+      .then((client) => setClients(client.data))
+      .finally(() => setIsLoading(false));
+  }, [activeTab, setClients]);
 
   useEffect(() => {
     if (activeTab == 3) {

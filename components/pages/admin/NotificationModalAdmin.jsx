@@ -17,7 +17,6 @@ import useProductStore, { orderCreateInfo, useEvent } from "@/store/event";
 import useAudio from "@/hooks/use-audio";
 import { AdminNewOrderToast, formatCreationTime } from "@/lib/functions";
 import axios from "axios";
-import Loader from "@/components/shared/loader";
 import { Button } from "@/components/ui/button";
 import { useRouter } from "next/navigation";
 import {
@@ -25,8 +24,9 @@ import {
   isBotLikeSource,
 } from "@/lib/orderSource";
 import { extractManualOrderComment } from "@/lib/orderComment";
+import { createDishModificationCartKey } from "@/lib/dishModifiers";
 
-export default function NotificationModalAdmin({ products }) {
+export default function NotificationModalAdmin() {
   const toNonNegativeNumber = (value) => Math.max(0, Number(value) || 0);
   const botOrders = useQuery(api.order.getByStatus, { status: "bot" });
   const websiteOrders = useQuery(api.order.getByStatus, { status: "website" });
@@ -40,13 +40,11 @@ export default function NotificationModalAdmin({ products }) {
   );
   const {
     setSearchClientValue,
-    setClients,
     setClientInfoData,
     setReflesh,
     setActiveTab,
   } = useEvent();
   const [loading, setLoading] = useState(false);
-  const [isLoading, setIsLoading] = useState(true);
   const [isOpen, setIsOpen] = useState(false);
   const { setOrderData, orderData: orderCheck } = orderCreateInfo();
   const {
@@ -57,6 +55,7 @@ export default function NotificationModalAdmin({ products }) {
     removeDiscount,
   } = useProductStore();
   const { playSound } = useAudio();
+  const [products, setAvailableProducts] = useState([]);
   const [branches, setBranches] = useState([]);
   const isNotificationInitialized = useRef(false);
   const knownOrderIds = useRef(new Set());
@@ -68,9 +67,23 @@ export default function NotificationModalAdmin({ products }) {
     try {
       console.log(order);
       setReflesh();
-      let { data: clientData } = await axios.get(
-        `/api/client?id=${order?.client_id}`
-      );
+      const [clientResponse, productResponse, branchResponse] =
+        await Promise.all([
+          axios.get(`/api/client?id=${order?.client_id}`),
+          products.length > 0 ? null : axios.get(`/api/product`),
+          branches.length > 0 ? null : axios.get(`/api/branch`),
+        ]);
+      let clientData = clientResponse.data;
+      const availableProducts =
+        productResponse?.data?.data || products;
+      const availableBranches = branchResponse?.data?.data || branches;
+
+      if (productResponse) {
+        setAvailableProducts(availableProducts);
+      }
+      if (branchResponse) {
+        setBranches(availableBranches);
+      }
 
       if (order?.address) {
         clientData = {
@@ -82,28 +95,41 @@ export default function NotificationModalAdmin({ products }) {
         };
       }
 
-      let filterProducts = products
-        ?.filter((pr) => {
-          // Check if product exists in order.products
-          const findProduct = order?.products?.find(
-            (op) => +op?.product_id === +pr?.product_id
+      const filterProducts = (order?.products || []).flatMap(
+        (orderProduct) => {
+          const product = availableProducts.find(
+            (item) => +item.product_id === +orderProduct.product_id
           );
-          // Return true if product is found in order
-          return !!findProduct;
-        })
-        .flatMap((pr) => {
-          const orderProduct = order.products.find(
-            (op) => +op.product_id === +pr.product_id
-          );
-          const productCount = orderProduct?.count || pr.count || 1;
+
+          if (!product) {
+            return [];
+          }
+
+          const productCount = orderProduct?.count || product.count || 1;
+          const selectedDishModifications =
+            orderProduct?.selectedDishModifications || [];
+          const cartKey = selectedDishModifications.length
+            ? createDishModificationCartKey(
+                product.product_id,
+                selectedDishModifications
+              )
+            : undefined;
 
           // Create an array with length equal to count and map to individual products
           return Array.from({ length: productCount }, () => ({
-            ...pr,
+            ...product,
             count: 1, // Each split product has count of 1
-            promotion_id: orderProduct?.promotion_id || pr.promotion_id || null,
+            modifications:
+              orderProduct?.modifications?.length > 0
+                ? orderProduct.modifications
+                : product.modifications,
+            selectedDishModifications,
+            cartKey,
+            promotion_id:
+              orderProduct?.promotion_id || product.promotion_id || null,
           }));
-        });
+        }
+      );
 
       console.log(filterProducts, "filterProducts");
 
@@ -140,7 +166,9 @@ export default function NotificationModalAdmin({ products }) {
           _id: order?._id,
           spot_id: order?.spot_id ? Number(order?.spot_id) : 0,
           spot_name: order?.spot_id
-            ? branches?.find((spot) => spot?.spot_id == order?.spot_id)?.name
+            ? availableBranches?.find(
+                (spot) => spot?.spot_id == order?.spot_id
+              )?.name
             : "",
           phone: order?.phone,
           service_mode: order?.service_mode,
@@ -264,20 +292,6 @@ export default function NotificationModalAdmin({ products }) {
   };
 
   useEffect(() => {
-    (async () => {
-      try {
-        const client = await axios.get("/api/client");
-        const { data: branches } = await axios.get(`/api/branch`);
-        setBranches(branches.data);
-        setClients(client.data);
-      } catch (error) {
-      } finally {
-        setIsLoading(false);
-      }
-    })();
-  }, [setClients]);
-
-  useEffect(() => {
     const currentIds = new Set(orderData.map((order) => order._id));
 
     if (!isNotificationInitialized.current) {
@@ -297,8 +311,6 @@ export default function NotificationModalAdmin({ products }) {
 
     knownOrderIds.current = currentIds;
   }, [orderData, playSound]);
-
-  if (isLoading) return <Loader />;
 
   return (
     <Sheet open={isOpen} onOpenChange={setIsOpen}>

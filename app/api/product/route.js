@@ -1,4 +1,5 @@
 import { ApiService } from "@/lib/api.services";
+import { toAdminProductSummaries } from "@/lib/posterProducts";
 
 export async function GET(req) {
   try {
@@ -17,10 +18,14 @@ export async function GET(req) {
         "menu.getProducts",
         `&category_id=${categoryId}`
       );
-      return Response.json({ data: products.response });
+      return Response.json({
+        data: toAdminProductSummaries(products.response),
+      });
     } else {
       const products = await ApiService.getData("menu.getProducts");
-      return Response.json({ data: products.response });
+      return Response.json({
+        data: toAdminProductSummaries(products.response),
+      });
     }
   } catch (error) {
     console.error("Error fetching category:", error);
