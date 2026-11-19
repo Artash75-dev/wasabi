@@ -7,7 +7,7 @@ import Link from "next/link";
 import React from "react";
 
 export default function ProductItem(props) {
-  const { title, href, image } = props;
+  const { title, href, image, onClick } = props;
 
   const imageUrl = image
     ? `${POSTER_URL}${image}`
@@ -35,6 +35,7 @@ export default function ProductItem(props) {
         <Link
           className="bg-white p-4 rounded-md shadow-sm space-y-2 flex flex-col justify-between items-between"
           href={href}
+          onClick={onClick}
         >
           <div className="cursor-pointer flex justify-between items-between gap-2">
             <h1 className="font-bold textNormal1 text-start">

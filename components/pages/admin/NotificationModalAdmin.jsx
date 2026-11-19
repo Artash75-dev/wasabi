@@ -67,10 +67,17 @@ export default function NotificationModalAdmin() {
     try {
       console.log(order);
       setReflesh();
+      const productIds = [
+        ...new Set(
+          (order?.products || []).map((product) => product.product_id)
+        ),
+      ].join(",");
       const [clientResponse, productResponse, branchResponse] =
         await Promise.all([
           axios.get(`/api/client?id=${order?.client_id}`),
-          products.length > 0 ? null : axios.get(`/api/product`),
+          products.length > 0
+            ? null
+            : axios.get(`/api/product?ids=${productIds}`),
           branches.length > 0 ? null : axios.get(`/api/branch`),
         ]);
       let clientData = clientResponse.data;

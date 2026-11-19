@@ -1,6 +1,6 @@
 import OrderAddInfo from "@/app/(root)/admin/add-order/_components/OrderAddInfo";
 import SideBarOrder from "@/app/(root)/admin/add-order/_components/orderSidebar";
-import { toAdminProductSummaries } from "@/lib/posterProducts";
+import { getCachedAdminProducts } from "@/lib/posterProducts.server";
 import { POSTER_API, POSTER_TOKEN } from "@/lib/utils";
 import React from "react";
 
@@ -15,12 +15,11 @@ const fetchData = async (url) => {
 };
 
 export default async function AddOrder() {
-  const [categoryData, productsData, orderSources] = await Promise.all([
+  const [categoryData, products, orderSources] = await Promise.all([
     fetchData(`menu.getCategories`),
-    fetchData(`menu.getProducts`),
+    getCachedAdminProducts(),
     fetchData(`settings.getOrderSources`),
   ]);
-  const products = toAdminProductSummaries(productsData?.response);
 
   return (
     <main className="max-w-[1440px] mx-auto mt-20 grid grid-cols-5 gap-3">

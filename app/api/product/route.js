@@ -1,11 +1,12 @@
 import { ApiService } from "@/lib/api.services";
-import { toAdminProductSummaries } from "@/lib/posterProducts";
+import { getCachedAdminProducts } from "@/lib/posterProducts.server";
 
 export async function GET(req) {
   try {
     const url = new URL(req.url);
     const id = url.searchParams.get("id");
     const categoryId = url.searchParams.get("categoryId");
+    const ids = url.searchParams.get("ids");
 
     if (id) {
       const product = await ApiService.getData(
@@ -13,18 +14,31 @@ export async function GET(req) {
         `&product_id=${id}`
       );
       return Response.json({ data: product.response });
-    } else if (categoryId) {
-      const products = await ApiService.getData(
-        "menu.getProducts",
-        `&category_id=${categoryId}`
-      );
-      return Response.json({
-        data: toAdminProductSummaries(products.response),
-      });
     } else {
-      const products = await ApiService.getData("menu.getProducts");
+      const products = await getCachedAdminProducts();
+
+      if (ids) {
+        const requestedIds = new Set(
+          ids.split(",").map((productId) => Number(productId))
+        );
+        return Response.json({
+          data: products.filter((product) =>
+            requestedIds.has(Number(product.product_id))
+          ),
+        });
+      }
+
+      if (categoryId) {
+        return Response.json({
+          data: products.filter(
+            (product) =>
+              Number(product.menu_category_id) === Number(categoryId)
+          ),
+        });
+      }
+
       return Response.json({
-        data: toAdminProductSummaries(products.response),
+        data: products,
       });
     }
   } catch (error) {

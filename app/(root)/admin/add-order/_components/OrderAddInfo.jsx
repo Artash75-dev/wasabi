@@ -36,7 +36,8 @@ export default function OrderAddInfo({ categoryData, productsData }) {
   const { searchValue, searchFocus } = useEvent();
   const searchParams = useSearchParams();
   const topCategory = searchParams.get("topCategory");
-  const category = searchParams.get("category");
+  const categoryParam = searchParams.get("category");
+  const [category, setCategory] = useState(categoryParam);
   const client = searchParams.get("client");
   const newClient = searchParams.get("newClient");
 
@@ -46,8 +47,29 @@ export default function OrderAddInfo({ categoryData, productsData }) {
   const noDiscountProducts = productsData?.filter((p) => +p?.nodiscount == 1);
 
   const handleGoBack = () => {
-    router.back();
+    setCategory(null);
+    const params = new URLSearchParams(window.location.search);
+    params.delete("category");
+    window.history.pushState(null, "", `${window.location.pathname}?${params}`);
   };
+
+  const handleCategorySelect = (categoryId) => {
+    setCategory(String(categoryId));
+    const params = new URLSearchParams(window.location.search);
+    params.set("topCategory", "true");
+    params.set("category", String(categoryId));
+    window.history.pushState(null, "", `${window.location.pathname}?${params}`);
+  };
+
+  useEffect(() => {
+    const syncCategoryFromUrl = () => {
+      const params = new URLSearchParams(window.location.search);
+      setCategory(params.get("category"));
+    };
+
+    window.addEventListener("popstate", syncCategoryFromUrl);
+    return () => window.removeEventListener("popstate", syncCategoryFromUrl);
+  }, []);
 
   const addProductToCart = (product, modif_product) => {
     setProducts(
@@ -200,6 +222,12 @@ export default function OrderAddInfo({ categoryData, productsData }) {
                                         <ProductItem
                                           key={idx}
                                           href={`/admin/add-order?topCategory=true&category=${item.category_id}`}
+                                          onClick={(event) => {
+                                            event.preventDefault();
+                                            handleCategorySelect(
+                                              item.category_id
+                                            );
+                                          }}
                                           id={item.id}
                                           title={name}
                                           description="Классические суши от WASSABI"
