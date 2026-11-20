@@ -55,6 +55,7 @@ export default function NotificationModalAdmin() {
     removeDiscount,
   } = useProductStore();
   const { playSound } = useAudio();
+  const [products, setAvailableProducts] = useState([]);
   const isNotificationInitialized = useRef(false);
   const knownOrderIds = useRef(new Set());
   const router = useRouter();
@@ -65,10 +66,32 @@ export default function NotificationModalAdmin() {
     try {
       console.log(order);
       setReflesh();
-      const clientResponse = await axios.get(
-        `/api/client?id=${order?.client_id}`
+      const productIds = [
+        ...new Set(
+          (order?.products || []).map((product) => product.product_id)
+        ),
+      ];
+      const cachedProductIds = new Set(
+        products.map((product) => Number(product.product_id))
       );
+      const missingProductIds = productIds.filter(
+        (productId) => !cachedProductIds.has(Number(productId))
+      );
+      const [clientResponse, productResponse] = await Promise.all([
+        axios.get(`/api/client?id=${order?.client_id}`),
+        missingProductIds.length > 0
+          ? axios.get(`/api/product?ids=${missingProductIds.join(",")}`)
+          : null,
+      ]);
       let clientData = clientResponse.data;
+      const availableProducts = [
+        ...products,
+        ...(productResponse?.data?.data || []),
+      ];
+
+      if (productResponse) {
+        setAvailableProducts(availableProducts);
+      }
 
       if (order?.address) {
         clientData = {
@@ -82,6 +105,14 @@ export default function NotificationModalAdmin() {
 
       const filterProducts = (order?.products || []).flatMap(
         (orderProduct) => {
+          const posterProduct = availableProducts.find(
+            (item) => +item.product_id === +orderProduct.product_id
+          );
+
+          if (!posterProduct) {
+            return [];
+          }
+
           const productCount = orderProduct?.count || 1;
           const selectedDishModifications =
             orderProduct?.selectedDishModifications || [];
@@ -94,7 +125,9 @@ export default function NotificationModalAdmin() {
 
           // Create an array with length equal to count and map to individual products
           return Array.from({ length: productCount }, () => ({
+            ...posterProduct,
             ...orderProduct,
+            price: posterProduct.price,
             count: 1, // Each split product has count of 1
             modifications: orderProduct?.modifications || [],
             selectedDishModifications,
