@@ -25,6 +25,10 @@ import {
 } from "@/lib/orderSource";
 import { extractManualOrderComment } from "@/lib/orderComment";
 import { createDishModificationCartKey } from "@/lib/dishModifiers";
+import {
+  buildIncomingPromotion,
+  mergeIncomingOrderProduct,
+} from "@/lib/incomingOrderProducts";
 
 export default function NotificationModalAdmin() {
   const toNonNegativeNumber = (value) => Math.max(0, Number(value) || 0);
@@ -48,7 +52,6 @@ export default function NotificationModalAdmin() {
   const [isOpen, setIsOpen] = useState(false);
   const { setOrderData, orderData: orderCheck } = orderCreateInfo();
   const {
-    setProducts,
     setProductsData,
     setDiscountsProduct,
     resetProduct,
@@ -103,14 +106,14 @@ export default function NotificationModalAdmin() {
         };
       }
 
-      const filterProducts = (order?.products || []).flatMap(
+      const filterProducts = (order?.products || []).map(
         (orderProduct) => {
           const posterProduct = availableProducts.find(
             (item) => +item.product_id === +orderProduct.product_id
           );
 
           if (!posterProduct) {
-            return [];
+            return null;
           }
 
           const productCount = orderProduct?.count || 1;
@@ -123,25 +126,35 @@ export default function NotificationModalAdmin() {
               )
             : undefined;
 
-          // Create an array with length equal to count and map to individual products
-          return Array.from({ length: productCount }, () => ({
-            ...posterProduct,
-            ...orderProduct,
-            price: posterProduct.price,
-            count: 1, // Each split product has count of 1
+          return {
+            ...mergeIncomingOrderProduct(posterProduct, orderProduct),
+            count: productCount,
             modifications: orderProduct?.modifications || [],
             selectedDishModifications,
             cartKey,
             promotion_id: orderProduct?.promotion_id || null,
-          }));
+          };
         }
-      );
+      ).filter(Boolean);
 
       console.log(filterProducts, "filterProducts");
 
       if (filterProducts.length > 0) {
-        filterProducts.map((prd) => {
-          return setProducts(prd);
+        const regularProducts = [];
+        const promotionProducts = [];
+
+        filterProducts.forEach((product) => {
+          const promotion = buildIncomingPromotion(product);
+          if (promotion) {
+            promotionProducts.push({ product, promotion });
+          } else {
+            regularProducts.push(product);
+          }
+        });
+
+        setProductsData(regularProducts);
+        promotionProducts.forEach(({ product, promotion }) => {
+          setDiscountsProduct(product, promotion);
         });
         // const filterProductData = filterProducts.filter((prd) => {
         //   if (Number(prd.promotion_id) > 0) {

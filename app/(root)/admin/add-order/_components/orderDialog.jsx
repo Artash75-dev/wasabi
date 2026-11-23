@@ -445,6 +445,7 @@ export default function OrderDialog({
       let activeNoDiscountProductsTotal = 0; // Aktiv, lekin discount yo'q
       let activeWithDiscountProductsTotal = 0; // Aktiv va discount mavjud mahsulotlar
       let discountClientPrice = 0;
+      let promotionDiscountPrice = 0;
 
       // Mahsulotlarni tahlil qilish
       products.forEach((product) => {
@@ -466,9 +467,12 @@ export default function OrderDialog({
       if (discountProducts?.length > 0) {
         discountProducts?.forEach((product) => {
           if (product?.discount?.active) {
-            activeWithDiscountProductsTotal += calculateProductTotal(
-              product,
-              true
+            const originalProductTotal = calculateProductTotal(product, false);
+            const discountedProductTotal = calculateProductTotal(product, true);
+            activeWithDiscountProductsTotal += discountedProductTotal;
+            promotionDiscountPrice += Math.max(
+              0,
+              originalProductTotal - discountedProductTotal
             );
           } else {
             activeWithDiscountProductsTotal += 0;
@@ -523,7 +527,9 @@ export default function OrderDialog({
           roundToTwoDecimals(noDiscountProductsTotal) +
           roundToTwoDecimals(activeNoDiscountProductsTotal) +
           roundToTwoDecimals(activeWithDiscountProductsTotal),
-        discountPrice: roundToTwoDecimals(discountClientPrice),
+        discountPrice: roundToTwoDecimals(
+          discountClientPrice + promotionDiscountPrice
+        ),
       }));
     };
     calculateTotals();
