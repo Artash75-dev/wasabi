@@ -189,6 +189,8 @@ export default function NotificationModalAdmin() {
           service_mode: order?.service_mode,
           payment_method: order?.payment_method,
           total: orderTotal,
+          importedTotal: orderTotal,
+          importedDiscountPrice: toNonNegativeNumber(order?.discount_price),
           chat_id: order?.chat_id,
           location: order?.location,
           status: order?.status,
@@ -216,6 +218,7 @@ export default function NotificationModalAdmin() {
           pay_payme: payPayme,
           pay_bonus: payBonus,
           pay_sertificate: payCertificate,
+          discountPrice: toNonNegativeNumber(order?.discount_price),
           stick_count: order?.stick_count ?? null,
         });
 

@@ -524,12 +524,17 @@ export default function OrderDialog({
       setOrderData((prev) => ({
         ...prev,
         total:
-          roundToTwoDecimals(noDiscountProductsTotal) +
-          roundToTwoDecimals(activeNoDiscountProductsTotal) +
-          roundToTwoDecimals(activeWithDiscountProductsTotal),
-        discountPrice: roundToTwoDecimals(
-          discountClientPrice + promotionDiscountPrice
-        ),
+          prev?.importedTotal != null
+            ? Number(prev.importedTotal)
+            : roundToTwoDecimals(noDiscountProductsTotal) +
+              roundToTwoDecimals(activeNoDiscountProductsTotal) +
+              roundToTwoDecimals(activeWithDiscountProductsTotal),
+        discountPrice:
+          prev?.importedDiscountPrice != null
+            ? Number(prev.importedDiscountPrice)
+            : roundToTwoDecimals(
+                discountClientPrice + promotionDiscountPrice
+              ),
       }));
     };
     calculateTotals();
