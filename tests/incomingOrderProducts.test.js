@@ -3,6 +3,7 @@ import test from "node:test";
 
 import {
   buildIncomingPromotion,
+  createOrderProductsSignature,
   mergeIncomingOrderProduct,
 } from "../lib/incomingOrderProducts.js";
 
@@ -102,4 +103,40 @@ test("restores a fixed promotion price", () => {
   assert.equal(product.price["1"], 1700000);
   assert.equal(product.fixedPrice, 5000);
   assert.equal(product.price["1"] / 100 - product.fixedPrice, 12000);
+});
+
+test("detects when an imported cart quantity is edited", () => {
+  const importedProducts = [
+    { product_id: 123, count: 1, promotion_id: 333, result_type: 1 },
+    { product_id: 384, count: 1 },
+  ];
+  const editedProducts = [
+    { product_id: 123, count: 1, promotion_id: 333, result_type: 1 },
+    { product_id: 384, count: 2 },
+  ];
+
+  assert.notEqual(
+    createOrderProductsSignature(importedProducts),
+    createOrderProductsSignature(editedProducts)
+  );
+});
+
+test("matches restored promotion products with the imported cart", () => {
+  const importedProducts = [
+    { product_id: 123, count: 1, promotion_id: 333, result_type: 1 },
+  ];
+  const restoredProducts = [
+    {
+      product_id: 123,
+      count: 1,
+      promotion_id: 333,
+      result_type: 1,
+      discount: { promotion_id: 333, active: true, params: { result_type: 1 } },
+    },
+  ];
+
+  assert.equal(
+    createOrderProductsSignature(importedProducts),
+    createOrderProductsSignature(restoredProducts)
+  );
 });

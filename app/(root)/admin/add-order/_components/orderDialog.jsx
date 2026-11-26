@@ -47,6 +47,7 @@ import {
   getDishModificationLabel,
   getDishModificationPrice,
 } from "@/lib/dishModifiers";
+import { createOrderProductsSignature } from "@/lib/incomingOrderProducts";
 
 const socket = io();
 
@@ -521,16 +522,24 @@ export default function OrderDialog({
         { activeWithDiscountProductsTotal }
       );
 
+      const currentCartSignature = createOrderProductsSignature([
+        ...products,
+        ...discountProducts,
+      ]);
+      const importedCartIsUnchanged =
+        Boolean(orderData?.importedCartSignature) &&
+        orderData.importedCartSignature === currentCartSignature;
+
       setOrderData((prev) => ({
         ...prev,
         total:
-          prev?.importedTotal != null
+          importedCartIsUnchanged && prev?.importedTotal != null
             ? Number(prev.importedTotal)
             : roundToTwoDecimals(noDiscountProductsTotal) +
               roundToTwoDecimals(activeNoDiscountProductsTotal) +
               roundToTwoDecimals(activeWithDiscountProductsTotal),
         discountPrice:
-          prev?.importedDiscountPrice != null
+          importedCartIsUnchanged && prev?.importedDiscountPrice != null
             ? Number(prev.importedDiscountPrice)
             : roundToTwoDecimals(
                 discountClientPrice + promotionDiscountPrice
@@ -541,6 +550,7 @@ export default function OrderDialog({
   }, [
     products,
     orderData?.client,
+    orderData?.importedCartSignature,
     discountProducts,
     discountProducts?.discount?.active,
     reload,

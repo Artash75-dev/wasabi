@@ -27,6 +27,7 @@ import { extractManualOrderComment } from "@/lib/orderComment";
 import { createDishModificationCartKey } from "@/lib/dishModifiers";
 import {
   buildIncomingPromotion,
+  createOrderProductsSignature,
   mergeIncomingOrderProduct,
 } from "@/lib/incomingOrderProducts";
 
@@ -190,7 +191,11 @@ export default function NotificationModalAdmin() {
           payment_method: order?.payment_method,
           total: orderTotal,
           importedTotal: orderTotal,
-          importedDiscountPrice: toNonNegativeNumber(order?.discount_price),
+          importedDiscountPrice:
+            toNonNegativeNumber(order?.discount_price) > 0
+              ? toNonNegativeNumber(order?.discount_price)
+              : null,
+          importedCartSignature: createOrderProductsSignature(filterProducts),
           chat_id: order?.chat_id,
           location: order?.location,
           status: order?.status,
