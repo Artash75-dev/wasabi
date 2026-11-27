@@ -47,7 +47,6 @@ import {
   getDishModificationLabel,
   getDishModificationPrice,
 } from "@/lib/dishModifiers";
-import { createOrderProductsSignature } from "@/lib/incomingOrderProducts";
 
 const socket = io();
 
@@ -522,35 +521,52 @@ export default function OrderDialog({
         { activeWithDiscountProductsTotal }
       );
 
-      const currentCartSignature = createOrderProductsSignature([
-        ...products,
-        ...discountProducts,
-      ]);
-      const importedCartIsUnchanged =
-        Boolean(orderData?.importedCartSignature) &&
-        orderData.importedCartSignature === currentCartSignature;
+      const calculatedCartTotal =
+        roundToTwoDecimals(noDiscountProductsTotal) +
+        roundToTwoDecimals(activeNoDiscountProductsTotal) +
+        roundToTwoDecimals(activeWithDiscountProductsTotal);
+      const calculatedDiscountPrice = roundToTwoDecimals(
+        discountClientPrice + promotionDiscountPrice
+      );
+      const hasImportedBaseline =
+        orderData?.importedTotal != null &&
+        orderData?.importedVisibleTotal != null;
+      const importedBaseDiscount =
+        Number(orderData?.importedDiscountPrice) > 0
+          ? Number(orderData.importedDiscountPrice)
+          : Number(orderData?.importedVisibleDiscountPrice) || 0;
 
       setOrderData((prev) => ({
         ...prev,
         total:
-          importedCartIsUnchanged && prev?.importedTotal != null
-            ? Number(prev.importedTotal)
-            : roundToTwoDecimals(noDiscountProductsTotal) +
-              roundToTwoDecimals(activeNoDiscountProductsTotal) +
-              roundToTwoDecimals(activeWithDiscountProductsTotal),
+          hasImportedBaseline
+            ? roundToTwoDecimals(
+                Number(prev.importedTotal) +
+                  calculatedCartTotal -
+                  Number(prev.importedVisibleTotal)
+              )
+            : calculatedCartTotal,
         discountPrice:
-          importedCartIsUnchanged && prev?.importedDiscountPrice != null
-            ? Number(prev.importedDiscountPrice)
-            : roundToTwoDecimals(
-                discountClientPrice + promotionDiscountPrice
-              ),
+          hasImportedBaseline
+            ? roundToTwoDecimals(
+                Math.max(
+                  0,
+                  importedBaseDiscount +
+                    calculatedDiscountPrice -
+                    Number(prev.importedVisibleDiscountPrice || 0)
+                )
+              )
+            : calculatedDiscountPrice,
       }));
     };
     calculateTotals();
   }, [
     products,
     orderData?.client,
-    orderData?.importedCartSignature,
+    orderData?.importedTotal,
+    orderData?.importedDiscountPrice,
+    orderData?.importedVisibleTotal,
+    orderData?.importedVisibleDiscountPrice,
     discountProducts,
     discountProducts?.discount?.active,
     reload,

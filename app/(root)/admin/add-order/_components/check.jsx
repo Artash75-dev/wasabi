@@ -221,7 +221,8 @@ const Check = ({ products, productsData, categoryData }) => {
                               )}
                             </td>
                             <td className="text-thin px-2 py-1 textSmall2 text-center">
-                              {item?.isBonusProduct ? (
+                              {item?.isBonusProduct &&
+                              !item?.isImportedPromotion ? (
                                 <h1 className="min-w-4">{count}</h1>
                               ) : (
                                 <div className="flex items-center justify-center gap-2">

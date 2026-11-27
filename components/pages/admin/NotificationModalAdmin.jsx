@@ -27,8 +27,8 @@ import { extractManualOrderComment } from "@/lib/orderComment";
 import { createDishModificationCartKey } from "@/lib/dishModifiers";
 import {
   buildIncomingPromotion,
-  createOrderProductsSignature,
   mergeIncomingOrderProduct,
+  summarizeImportedOrderProducts,
 } from "@/lib/incomingOrderProducts";
 
 export default function NotificationModalAdmin() {
@@ -174,6 +174,9 @@ export default function NotificationModalAdmin() {
           clientData?.client?.comment
         );
         const orderTotal = toNonNegativeNumber(order?.total);
+        const importedProductsSummary = summarizeImportedOrderProducts(
+          filterProducts
+        );
         const payCash = toNonNegativeNumber(order?.pay_cash);
         const payCard = toNonNegativeNumber(order?.pay_card);
         const payClick = toNonNegativeNumber(order?.pay_click);
@@ -195,7 +198,8 @@ export default function NotificationModalAdmin() {
             toNonNegativeNumber(order?.discount_price) > 0
               ? toNonNegativeNumber(order?.discount_price)
               : null,
-          importedCartSignature: createOrderProductsSignature(filterProducts),
+          importedVisibleTotal: importedProductsSummary.total,
+          importedVisibleDiscountPrice: importedProductsSummary.discount,
           chat_id: order?.chat_id,
           location: order?.location,
           status: order?.status,

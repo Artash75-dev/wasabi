@@ -5,6 +5,7 @@ import {
   buildIncomingPromotion,
   createOrderProductsSignature,
   mergeIncomingOrderProduct,
+  summarizeImportedOrderProducts,
 } from "../lib/incomingOrderProducts.js";
 
 test("restores an imported percentage promotion using the original price", () => {
@@ -139,4 +140,29 @@ test("matches restored promotion products with the imported cart", () => {
     createOrderProductsSignature(importedProducts),
     createOrderProductsSignature(restoredProducts)
   );
+});
+
+test("summarizes two free 1+1 results without losing the hidden paid total", () => {
+  const products = [
+    mergeIncomingOrderProduct(
+      { product_id: 123, price: { 1: 1700000 } },
+      {
+        product_id: 123,
+        count: 2,
+        price: 0,
+        promotion_id: 333,
+        result_type: 1,
+      }
+    ),
+    mergeIncomingOrderProduct(
+      { product_id: 384, price: { 1: 200000 } },
+      { product_id: 384, count: 1, price: 2000 }
+    ),
+  ];
+
+  assert.deepEqual(summarizeImportedOrderProducts(products), {
+    total: 2000,
+    discount: 34000,
+  });
+  assert.equal(products[0].isImportedPromotion, true);
 });
