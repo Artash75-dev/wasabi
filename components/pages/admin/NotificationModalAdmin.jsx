@@ -27,6 +27,7 @@ import { extractManualOrderComment } from "@/lib/orderComment";
 import { createDishModificationCartKey } from "@/lib/dishModifiers";
 import {
   buildIncomingPromotion,
+  getImportedOrderSubtotal,
   mergeIncomingOrderProduct,
   summarizeImportedOrderProducts,
 } from "@/lib/incomingOrderProducts";
@@ -174,6 +175,11 @@ export default function NotificationModalAdmin() {
           clientData?.client?.comment
         );
         const orderTotal = toNonNegativeNumber(order?.total);
+        const orderSubtotal = getImportedOrderSubtotal({
+          total: orderTotal,
+          deliveryPrice: order?.delivery_price,
+          serviceMode: order?.service_mode,
+        });
         const importedProductsSummary = summarizeImportedOrderProducts(
           filterProducts
         );
@@ -192,8 +198,8 @@ export default function NotificationModalAdmin() {
           phone: order?.phone,
           service_mode: order?.service_mode,
           payment_method: order?.payment_method,
-          total: orderTotal,
-          importedTotal: orderTotal,
+          total: orderSubtotal,
+          importedTotal: orderSubtotal,
           importedDiscountPrice:
             toNonNegativeNumber(order?.discount_price) > 0
               ? toNonNegativeNumber(order?.discount_price)

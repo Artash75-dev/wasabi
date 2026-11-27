@@ -4,6 +4,7 @@ import test from "node:test";
 import {
   buildIncomingPromotion,
   createOrderProductsSignature,
+  getImportedOrderSubtotal,
   mergeIncomingOrderProduct,
   summarizeImportedOrderProducts,
 } from "../lib/incomingOrderProducts.js";
@@ -165,4 +166,31 @@ test("summarizes two free 1+1 results without losing the hidden paid total", () 
     discount: 34000,
   });
   assert.equal(products[0].isImportedPromotion, true);
+});
+
+test("removes delivery from an imported API total exactly once", () => {
+  assert.equal(
+    getImportedOrderSubtotal({
+      total: 126000,
+      deliveryPrice: 20000,
+      serviceMode: 3,
+    }),
+    106000
+  );
+  assert.equal(
+    getImportedOrderSubtotal({
+      total: 22000,
+      deliveryPrice: 20000,
+      serviceMode: 3,
+    }),
+    2000
+  );
+  assert.equal(
+    getImportedOrderSubtotal({
+      total: 22000,
+      deliveryPrice: 20000,
+      serviceMode: 2,
+    }),
+    22000
+  );
 });
